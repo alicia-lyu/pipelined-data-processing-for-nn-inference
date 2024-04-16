@@ -12,3 +12,4 @@ ls $BASEDIR/triton-tutorial/model_repository/text_recognition/1/model.onnx || (w
 docker run -it --gpus=all --shm-size=256m --rm -p8000:8000 -p8001:8001 -p8002:8002 -v "$BASEDIR/triton-tutorial/model_repository:/models" nvcr.io/nvidia/tritonserver:24.03-py3
 # Ruijia's version of launch
 # sudo docker run --gpus=all -it --shm-size=256m --rm -p8000:8000 -p8001:8001 -p8002:8002 -v $(pwd)/model_repository:/models nvcr.io/nvidia/tritonserver:23.11-py3
+# tritonserver --model-repository=/models
