@@ -2,6 +2,7 @@ BASEDIR=$(shell cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)
 MODEL_REPO=$(BASEDIR)/triton-tutorial/model_repository
 OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
+IMAGE_CLIENT1=$(BASEDIR)/triton-tutorial/client.py
 
 $(OPEN_CV):
 	wget https://www.dropbox.com/s/r2ingd0l3zt8hxs/frozen_east_text_detection.tar.gz
@@ -18,7 +19,13 @@ $(RESNET)/text_recognition/1/model.onnx:
 	mkdir -p $(MODEL_REPO)/text_recognition/1
 	mv resnet.onnx $(RESNET)
 
-run-triton: $(OPEN_CV) $(RESNET)
-	echo "Running triton server with models $(OPEN_CV) and $(RESNET)"
-	docker compose build
-	docker compose restart
+restart-triton-server:
+	docker stop $(shell docker ps -q --filter ancestor=triton-image)
+	make triton-server
+
+triton-server: $(OPEN_CV) $(RESNET)
+	docker build -t triton-image .
+	docker run -d --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
+
+test-image: $(IMAGE_CLIENT1) triton-server
+	python $(IMAGE_CLIENT1)
