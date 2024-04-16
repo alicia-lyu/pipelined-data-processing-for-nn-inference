@@ -29,4 +29,4 @@ triton-server: $(OPEN_CV) $(RESNET)
 
 test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)
-	python $(IMAGE_CLIENT1)
+	python ./client.py
