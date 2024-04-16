@@ -9,7 +9,6 @@ ls $BASEDIR/triton-tutorial/model_repository/text_detection/1/model.onnx || (wge
 # Text recognition: ResNet
 ls $BASEDIR/triton-tutorial/model_repository/text_recognition/1/model.onnx || (wget https://www.dropbox.com/sh/j3xmli4di1zuv3s/AABzCC1KGbIRe2wRwa3diWKwa/None-ResNet-None-CTC.pth -O resnet.pth; python convert_resnet.py; rm resnet.pth; mkdir -p model_repository/text_recognition/1; mv resnet.onnx model_repository/text_recognition/1/model.onnx)
 # Launch the server
-docker run --gpus=all -it --shm-size=256m --rm -p8000:8000 -p8001:8001 -p8002:8002 -v "$BASEDIR/triton-tutorial/model_repository:/models" nvcr.io/nvidia/tritonserver:24.03-py3
+docker run -d --gpus=all --shm-size=256m --rm -p8000:8000 -p8001:8001 -p8002:8002 -v "$BASEDIR/triton-tutorial/model_repository:/models" nvcr.io/nvidia/tritonserver:24.03-py3
 # Ruijia's version of launch
 # sudo docker run --gpus=all -it --shm-size=256m --rm -p8000:8000 -p8001:8001 -p8002:8002 -v $(pwd)/model_repository:/models nvcr.io/nvidia/tritonserver:23.11-py3
-# tritonserver --model-repository=/models
