@@ -9,7 +9,7 @@ services:
       - "8001:8001"
       - "8002:8002"
     volumes:
-      - "$BASEDIR/triton-tutorial/model_repository:/models"
+      - "./triton-tutorial/model_repository:/models"
     shm_size: 256m
     environment:
       - NVIDIA_VISIBLE_DEVICES=all

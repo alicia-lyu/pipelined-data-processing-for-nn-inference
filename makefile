@@ -20,5 +20,5 @@ $(RESNET)/text_recognition/1/model.onnx:
 
 run-triton: $(OPEN_CV) $(RESNET)
 	echo "Running triton server with models $(OPEN_CV) and $(RESNET)"
-	docker-compose build
-	docker-compose up
+	docker compose build
+	docker compose restart
