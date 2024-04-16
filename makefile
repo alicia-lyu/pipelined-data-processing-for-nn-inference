@@ -28,5 +28,4 @@ triton-server: $(OPEN_CV) $(RESNET)
 	docker run -d --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
 test-image: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)
-	python ./client.py
+	cd $(BASEDIR) && python ./client.py
