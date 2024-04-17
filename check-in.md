@@ -32,3 +32,7 @@ Group ZARN: Alicia Lyu, Ruijia Chen, Zach Potter, Nithin Weerasinghe
 - May 7: Write the report
 
 We researched into the video model provided by our contact person Minghao. Nexus is a full-edge system for video inferencing, not a model to be deployed on the NVIDIA Triton server. He also mentioned that Video inferencing is a similar workload to image data, because it is just images arriving in differental distributions. We decide not to have a designated section for video data, but simply experiment with different data arrival patterns.
+
+## Things we need help from the course staff
+
+We may need additional GCP credits to keep our machine running, so that we don't lose access to GPUs when needed.
