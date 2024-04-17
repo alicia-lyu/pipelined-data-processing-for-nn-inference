@@ -1,4 +1,5 @@
 frozen_east_text_detection*
+triton-tutorial-part1/
 triton-tutorial-part5/
 *.pth
 *.onnx
