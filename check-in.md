@@ -14,7 +14,7 @@ Group ZARN: Alicia Lyu, Ruijia Chen, Zach Potter, Nithin Weerasinghe
 - Audio team:
   - Set up the model (wav2vec)
   - Write the initial client program of naive sequential data processing (ongoing)
-- Write code for asynchronous data processing (can be shared by both workloads)
+- Write code for asynchronous data processing (can be shared by both workloads) (ongoing)
 
 ## Challenges we faced so far
 
