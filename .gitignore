@@ -1,4 +1,5 @@
 frozen_east_text_detection*
+triton-tutorial-part5/
 *.pth
 *.onnx
 __pycache__
