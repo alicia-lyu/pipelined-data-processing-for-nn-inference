@@ -52,8 +52,6 @@ In `Part 1`, we start by deploying both models on Triton with the pre/post proce
 
 The key challenge around managing multiple models is to build an infrastructure that can cater to the different requirements of different models. For instance, users may need to deploy a PyTorch model and TensorFlow model on the same server, and they have different loads for both the models, need to run them on different hardware devices, and need to independently manage the serving configurations (model queues, versions, caching, acceleration, and more). The Triton Inference Server caters to all of the above and more.
 
-![multiple models](./img/multiple_models.PNG)
-
 The first step in deploying models using the Triton Inference Server is building a repository that houses the models which will be served and the configuration schema. For the purposes of this demonstration, we will be making use of an [EAST](https://arxiv.org/pdf/1704.03155v2.pdf) model to detect text and a text recognition model. This workflow is largely an adaptation of [OpenCV's Text Detection](https://docs.opencv.org/4.x/db/da4/samples_2dnn_2text_detection_8cpp-example.html) samples.
 
 To begin, let's clone the repository and navigate to this folder.
