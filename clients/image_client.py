@@ -43,6 +43,7 @@ def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
         image, 1.0, (inpWidth, inpHeight), (123.68, 116.78, 103.94), True, False
     )
     blob = np.transpose(blob, (0, 2, 3, 1))
+    print(blob.shape)
     return blob
 
 
@@ -142,9 +143,10 @@ def detection_postprocessing(scores, geometry, preprocessed_image):
         cropped = fourPointsTransform(frame, vertices)
         cv2.imwrite(str(count) + ".png", cropped) # TODO: move to /intermediates
         cropped = np.expand_dims(cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY), axis=0)
-
         cropped_list.append(((cropped / 255.0) - 0.5) * 2)
+        print(cropped.shape)
     cropped_arr = np.stack(cropped_list, axis=0)
+    print(cropped_arr.shape)
 
     return cropped_arr
 
@@ -179,16 +181,22 @@ if __name__ == "__main__":
     client = httpclient.InferenceServerClient(url="localhost:8000")
 
     # Read image and create input object
-    raw_image = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG") 
-    # TODO: Take the input image from another python program image_pipeline.py
-    preprocessed_image = detection_preprocessing(raw_image)
-
-    detection_input = httpclient.InferInput(
-        "input_images:0", preprocessed_image.shape, datatype="FP32"
-    )
-    detection_input.set_data_from_numpy(preprocessed_image, binary_data=True)
+    raw_image1 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG")
+    raw_image2 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG")
+    # TODO: Use another python program image_pipeline.py to send input images to go through this client
+    preprocessed_image1 = detection_preprocessing(raw_image1)
+    preprocessed_image2 = detection_preprocessing(raw_image2)
+    preprocessed_images = np.stack([
+        preprocessed_image1[0],
+        preprocessed_image2[0]
+    ], axis=0)
     t1 = time.time()
     print("Preprocessing succeeded, took %d ms." % (t1 - t0))
+
+    detection_input = httpclient.InferInput(
+        "input_images:0", preprocessed_images.shape, datatype="FP32" 
+    )
+    detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
     # TODO: After setting up image_pipeline, see if batching had made
     # the time difference detectable, now it is almost always 0 ms.
 
@@ -198,11 +206,15 @@ if __name__ == "__main__":
     )
     t2 = time.time()
     print("Text detection succeeded, took %d ms." % (t2 - t1))
-    
+
     # Process responses from detection model
     scores = detection_response.as_numpy("feature_fusion/Conv_7/Sigmoid:0")
     geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
-    cropped_images = detection_postprocessing(scores, geometry, preprocessed_image)
+    cropped_images = []
+    for i in range(preprocessed_images.shape[0]):
+        preprocessed_image = preprocessed_images[i][np.newaxis, :]
+        print(preprocessed_image.shape)
+        cropped_images.extend(detection_postprocessing(scores, geometry, preprocessed_image))
     t3 = time.time()
     print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
 
