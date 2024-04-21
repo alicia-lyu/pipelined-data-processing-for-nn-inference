@@ -1,4 +1,4 @@
-BASEDIR=$(shell cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)/triton-tutorial
+BASEDIR=$(shell cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)
 MODEL_REPO=$(BASEDIR)/model_repository
 OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
@@ -11,11 +11,11 @@ $(OPEN_CV):
 	python -m tf2onnx.convert --input frozen_east_text_detection.pb --inputs "input_images:0" --outputs "feature_fusion/Conv_7/Sigmoid:0","feature_fusion/concat_3:0" --output detection.onnx
 	mkdir -p $(MODEL_REPO)/text_detection/1
 	mv detection.onnx $(OPEN_CV)
+	rm frozen_east_text_detection.pb
 
-$(RESNET)/text_recognition/1/model.onnx:
+$(RESNET):
 	wget https://www.dropbox.com/sh/j3xmli4di1zuv3s/AABzCC1KGbIRe2wRwa3diWKwa/None-ResNet-None-CTC.pth -O resnet.pth
-	python convert_resnet.py
-	rm resnet.pth
+	python utils/convert_resnet.py; rm resnet.pth
 	mkdir -p $(MODEL_REPO)/text_recognition/1
 	mv resnet.onnx $(RESNET)
 
