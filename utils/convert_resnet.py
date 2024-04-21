@@ -1,4 +1,3 @@
-# https://github.com/triton-inference-server/tutorials/tree/main/Conceptual_Guide/Part_1-model_deployment#model-2-text-recognition
 import torch
 from model import STRModel
 
@@ -12,4 +11,4 @@ model.load_state_dict(state)
 
 # Create ONNX file by tracing model
 trace_input = torch.randn(1, 1, 32, 100)
-torch.onnx.export(model, trace_input, "resnet.onnx", verbose=True)
+torch.onnx.export(model, trace_input, "resnet.onnx", verbose=True, dynamic_axes={'input.1':[0],'308':[0]})

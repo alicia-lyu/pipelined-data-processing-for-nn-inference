@@ -146,32 +146,32 @@ def detection_postprocessing(scores, geometry, preprocessed_image):
         cropped_list.append(((cropped / 255.0) - 0.5) * 2)
     cropped_arr = np.stack(cropped_list, axis=0)
 
-    # Only keep the first image, since the models don't currently allow batching.
-    # See part 2 for enabling batch sizes > 0.
-    # TODO: enable batching and recognize all images in cropped_list
-    return cropped_arr[None, 0]
-
+    return cropped_arr
 
 def recognition_postprocessing(scores: np.ndarray) -> str:
-    text = ""
     alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
-    scores = np.transpose(scores, (1, 0, 2))
-
+    text_list = []
     for i in range(scores.shape[0]):
-        c = np.argmax(scores[i][0])
-        if c != 0:
-            text += alphabet[c - 1]
-        else:
-            text += "-"
+        text = ""
+        for j in range(scores.shape[1]):
+            c = np.argmax(scores[i][j])
+            if c != 0:
+                text += alphabet[c - 1]
+            else:
+                text += "-"
+        text_list.append(text)
     # adjacent same letters as well as background text must be removed
     # to get the final output
-    char_list = []
-    for i, char in enumerate(text):
-        if char != "-" and (not (i > 0 and char == text[i - 1])):
-            char_list.append(char)
-    return "".join(char_list)
-
+    final_text_list = []
+    for text in text_list:
+        char_list = []
+        for i, char in enumerate(text):
+            if char != "-" and (not (i > 0 and char == text[i - 1])):
+                char_list.append(char)
+        final_text = "".join(char_list)
+        final_text_list.append(final_text)
+    return final_text_list
 
 if __name__ == "__main__":
     t0 = time.time()
@@ -189,9 +189,8 @@ if __name__ == "__main__":
     detection_input.set_data_from_numpy(preprocessed_image, binary_data=True)
     t1 = time.time()
     print("Preprocessing succeeded, took %d ms." % (t1 - t0))
-    # TODO: Is there a way to increase the precision of time difference? All I got is 0 ms
-    # Another approach: Enable batching first. With a large anough batch size (e.g. 12 images in a batch),
-    # the time difference would be detectable.
+    # TODO: After setting up image_pipeline, see if batching had made
+    # the time difference detectable, now it is almost always 0 ms.
 
     # Query the server
     detection_response = client.infer(
@@ -205,7 +204,7 @@ if __name__ == "__main__":
     geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
     cropped_images = detection_postprocessing(scores, geometry, preprocessed_image)
     t3 = time.time()
-    print("Cropped image based on detection, took %d ms." % (t3 - t2))
+    print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
 
     # Create input object for recognition model
     recognition_input = httpclient.InferInput(
