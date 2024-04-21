@@ -1,0 +1,1 @@
+# TODO: send images one by one to image_client.py, data arrival ~ uniform distribution

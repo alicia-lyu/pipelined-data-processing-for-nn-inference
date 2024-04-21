@@ -179,7 +179,8 @@ if __name__ == "__main__":
     client = httpclient.InferenceServerClient(url="localhost:8000")
 
     # Read image and create input object
-    raw_image = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG")
+    raw_image = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG") 
+    # TODO: Take the input image from another python program image_pipeline.py
     preprocessed_image = detection_preprocessing(raw_image)
 
     detection_input = httpclient.InferInput(
@@ -188,6 +189,9 @@ if __name__ == "__main__":
     detection_input.set_data_from_numpy(preprocessed_image, binary_data=True)
     t1 = time.time()
     print("Preprocessing succeeded, took %d ms." % (t1 - t0))
+    # TODO: Is there a way to increase the precision of time difference? All I got is 0 ms
+    # Another approach: Enable batching first. With a large anough batch size (e.g. 12 images in a batch),
+    # the time difference would be detectable.
 
     # Query the server
     detection_response = client.infer(
