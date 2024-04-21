@@ -4,7 +4,7 @@ triton-tutorial-part5/
 *.pth
 *.onnx
 __pycache__
-/dataset/*
+/intermediates/*
 *.swp
 *~
 *.png

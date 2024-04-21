@@ -19,6 +19,17 @@ $(RESNET):
 	mkdir -p $(MODEL_REPO)/text_recognition/1
 	mv resnet.onnx $(RESNET)
 
+./datasets:
+	mkdir -p ./datasets
+
+ic03.zip:
+	wget http://www.iapr-tc11.org/dataset/ICDAR2003_RobustReading/TrialTrain/scene.zip -o ic03.zip
+
+./datasets/ic03: ic03.zip
+	mkdir -p ./datasets/ic03
+	unzip ic03.zip -d ./datasets/ic03
+	rm ic03.zip
+
 restart-triton-server:
 	docker stop $(shell docker ps -q --filter ancestor=triton-image) || echo "No Triton server running"
 	make triton-server
@@ -28,4 +39,4 @@ triton-server: $(OPEN_CV) $(RESNET)
 	docker run --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
 test-image: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR) && python ./client.py
+	cd $(BASEDIR)/clients && python ./image_client.py
