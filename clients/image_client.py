@@ -183,13 +183,14 @@ if __name__ == "__main__":
     # Read image and create input object
     raw_image1 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG")
     raw_image2 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG")
-    # TODO: Use another python program image_pipeline.py to send input images to go through this client
-    preprocessed_image1 = detection_preprocessing(raw_image1)
-    preprocessed_image2 = detection_preprocessing(raw_image2)
+    # TODO: Use another python program image_pipeline.py to send all input images to this client
+    # Here 2 images are batched together. We can tune the number of images in a batch in image_pipeline
+    preprocessed_image1 = detection_preprocessing(raw_image1) # (1, 480, 640, 3), 1 being batch size
+    preprocessed_image2 = detection_preprocessing(raw_image2) # (1, 480, 640, 3)
     preprocessed_images = np.stack([
         preprocessed_image1[0],
         preprocessed_image2[0]
-    ], axis=0)
+    ], axis=0) # matching dimension: (2, 480, 640, 3), now batching 2
     t1 = time.time()
     print("Preprocessing succeeded, took %d ms." % (t1 - t0))
 
@@ -211,11 +212,17 @@ if __name__ == "__main__":
     scores = detection_response.as_numpy("feature_fusion/Conv_7/Sigmoid:0")
     geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
     cropped_images = []
-    for i in range(preprocessed_images.shape[0]):
-        preprocessed_image = preprocessed_images[i][np.newaxis, :]
+    # TODO: Wrap batch detection postprocessing to a single method 
+    # (just move this for loop intodetection_postprocessing?)
+    for i in range(preprocessed_images.shape[0]): # crop image one by one
+        # matching dimension
+        preprocessed_image = np.array([preprocessed_images[i]]) # (1, 480, 640, 3)
+        scores_each = np.array([scores[i]])
+        geometry_each = np.array([geometry[i]])
         print(preprocessed_image.shape)
-        cropped_images.extend(detection_postprocessing(scores, geometry, preprocessed_image))
+        cropped_images.extend(detection_postprocessing(scores_each, geometry_each, preprocessed_image))
     t3 = time.time()
+    cropped_images = np.array(cropped_images)
     print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
 
     # Create input object for recognition model
