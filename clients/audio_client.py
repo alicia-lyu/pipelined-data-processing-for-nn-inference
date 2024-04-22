@@ -4,7 +4,7 @@ import numpy as np
 #Setup client
 client = httpclient.InferenceServerClient(url="localhost:8000")
 
-sample_rate = 8
+sample_rate = 16000
 audio_data = np.random.randn(sample_rate).astype(np.float32)
 
 inputs = [
