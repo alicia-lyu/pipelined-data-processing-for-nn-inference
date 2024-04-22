@@ -16,7 +16,7 @@ outputs = [
     httpclient.InferRequestedOutput("audio_output")
 ] 
 
-results = client.infer(model_name="wav2vec2", inputs=inputs, outputs=outputs)
+results = client.infer(model_name="speech_recognition", inputs=inputs, outputs=outputs)
 output_data = results.as_numpy("audio_output")
 print("Inference output:", output_data)
 
