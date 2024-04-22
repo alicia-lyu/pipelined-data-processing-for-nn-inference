@@ -23,7 +23,7 @@ $(RESNET):
 $(WAV2VEC):
 	python utils/convert_wav2vec.py
 	mkdir -p $(MODEL_REPO)/speech_recognition/1
-	mv wav2vec.onnx $(WAV2VEC)
+	mv wav2vec2.onnx $(WAV2VEC)
 
 ./datasets:
 	mkdir -p ./datasets
