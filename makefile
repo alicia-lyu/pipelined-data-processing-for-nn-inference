@@ -2,6 +2,7 @@ BASEDIR=$(shell cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)
 MODEL_REPO=$(BASEDIR)/model_repository
 OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
+WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/client.py
 
 $(OPEN_CV):
@@ -19,6 +20,11 @@ $(RESNET):
 	mkdir -p $(MODEL_REPO)/text_recognition/1
 	mv resnet.onnx $(RESNET)
 
+$(WAV2VEC):
+	python utils/convert_wav2vec.py
+	mkdir -p $(MODEL_REPO)/speech_recognition/1
+	mv wav2vec.onnx $(WAV2VEC)
+
 ./datasets:
 	mkdir -p ./datasets
 
@@ -34,9 +40,12 @@ restart-triton-server:
 	docker stop $(shell docker ps -q --filter ancestor=triton-image) || echo "No Triton server running"
 	make triton-server
 
-triton-server: $(OPEN_CV) $(RESNET)
+triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 	docker build -t triton-image .
 	docker run --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
 test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
+
+test-audio: triton-server
+	cd $(BASEDIR)/clients && python ./audio_client.py
