@@ -29,14 +29,14 @@ backend: "onnxruntime"
 max_batch_size : 8
 input [
   {
-    name: "audio_input"
+    name: "input"
     data_type: TYPE_FP32
     dims: [ 1, 16000 ]
   }
 ]
 output [
   {
-    name: "audio_output"
+    name: "output"
     data_type: TYPE_FP32
     dims: [ 32, 50 ]
   }
