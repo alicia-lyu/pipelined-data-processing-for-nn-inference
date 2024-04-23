@@ -1,11 +1,14 @@
 import tritonclient.http as httpclient
 import numpy as np
+import soundfile as sf
 
 #Setup client
 client = httpclient.InferenceServerClient(url="localhost:8000")
 
-sample_rate = 16000
-audio_data = np.random.randn(sample_rate).astype(np.float32)
+# sample_rate = 16000
+audio_data, sample_rate = sf.read("1.wav")
+
+# np.random.randn(sample_rate).astype(np.float32)
 
 inputs = [
     httpclient.InferInput("input", audio_data.shape, "FP32")

@@ -3,10 +3,8 @@ from transformers import Wav2Vec2ForCTC
 
 model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
 
-sample_rate = 16000
-dummy_input = torch.randn(1, sample_rate).float()
-
-model.eval()
+audio_len = 250000
+dummy_input = torch.randn(1, audio_len, requires_grad=True)
 
 torch.onnx.export(model,  # model being run
                   dummy_input,  # model input (or a tuple for multiple inputs)
@@ -16,5 +14,5 @@ torch.onnx.export(model,  # model being run
                   do_constant_folding=True,  # whether to execute constant folding for optimization
                   input_names=['input'],  # the model's input names
                   output_names=['output'],  # the model's output names
-                  dynamic_axes={'input': {0: 'batch_size', 1: 'sequence'},  # variable length axes
-                                'output': {0: 'batch_size', 1: 'sequence'}})  # variable length axes
+                  dynamic_axes={'input': {1: 'audio_len'},  # variable length axes
+                                'output': {1: 'audio_len'}})  # variable length axes
