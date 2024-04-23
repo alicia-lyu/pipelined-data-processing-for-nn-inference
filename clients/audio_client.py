@@ -8,15 +8,16 @@ client = httpclient.InferenceServerClient(url="localhost:8000")
 audio_data, sample_rate = sf.read("1.wav", dtype='float32')
 
 inputs = [
-    httpclient.InferInput("input", audio_data.shape, "FP32")
+    httpclient.InferInput("input", audio_data.shape, "FP32").set_data_from_numpy(audio_data, binary_data=True)
 ]
-inputs[0].set_data_from_numpy(audio_data)
+# inputs[0].set_data_from_numpy(audio_data)
 
-outputs = [
-    httpclient.InferRequestedOutput("output")
-] 
+#outputs = [
+#    httpclient.InferRequestedOutput("output")
+#] 
 
-results = client.infer(model_name="speech_recognition", inputs=inputs, outputs=outputs)
-output_data = results.as_numpy("output")
-print("Inference output:", output_data)
+results = client.infer(model_name="speech_recognition", inputs=inputs) #, outputs=outputs)
+print(results)
+# output_data = results.as_numpy("output")
+# print("Inference output:", output_data)
 
