@@ -6,7 +6,7 @@ import soundfile as sf
 client = httpclient.InferenceServerClient(url="localhost:8000")
 
 # sample_rate = 16000
-audio_data, sample_rate = sf.read("1.wav")
+audio_data, sample_rate = sf.read("1.wav", dtype='float32')
 
 # np.random.randn(sample_rate).astype(np.float32)
 
