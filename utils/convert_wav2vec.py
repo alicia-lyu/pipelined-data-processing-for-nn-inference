@@ -14,5 +14,4 @@ torch.onnx.export(model,  # model being run
                   do_constant_folding=True,  # whether to execute constant folding for optimization
                   input_names=['input'],  # the model's input names
                   output_names=['output'],  # the model's output names
-                  dynamic_axes={'input': {1: 'audio_len'},  # variable length axes
-                                'output': {1: 'audio_len'}})  # variable length axes
+                  dynamic_axes={'input': [0],'output': [0]}) 
