@@ -30,7 +30,9 @@ inputs[0].set_data_from_numpy(input_values.numpy())
 #] 
 
 results = client.infer(model_name="speech_recognition", inputs=inputs) #, outputs=outputs)
-print(results)
+print(results.get_response())
+print(results.get_output("output"))
+print(results.as_numpy("output"))
 
 # retrieve logits & take argmax
 # logits = results.logits
