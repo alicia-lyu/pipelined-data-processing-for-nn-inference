@@ -7,7 +7,7 @@ from datasets import load_dataset
 
 processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+# librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation") # TODO: pending download from http://www.openslr.org/12
 
 # load audio
 audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"], dtype='float32')
