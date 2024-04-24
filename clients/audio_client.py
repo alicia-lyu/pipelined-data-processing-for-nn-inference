@@ -10,7 +10,7 @@ processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
 
 # load audio
-audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"])
+audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"], dtype='float32')
 
 # pad input values and return pt tensor
 input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
@@ -21,9 +21,9 @@ client = httpclient.InferenceServerClient(url="localhost:8000")
 # audio_data, sample_rate = sf.read("1.wav", dtype='float32')
 
 inputs = [
-    httpclient.InferInput("input", audio_input.shape, "FP32").set_data_from_numpy(audio_input)
+    httpclient.InferInput("input", input_values.shape, "FP32")
 ]
-# inputs[0].set_data_from_numpy(audio_data)
+inputs[0].set_data_from_numpy(input_values.numpy())
 
 #outputs = [
 #    httpclient.InferRequestedOutput("output")
