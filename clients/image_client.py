@@ -30,6 +30,8 @@ import cv2
 import numpy as np
 import tritonclient.http as httpclient
 import time
+import sys
+
 
 SAVE_INTERMEDIATE_IMAGES = False
 
@@ -46,8 +48,7 @@ def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
     print(blob.shape)
     return blob
 
-
-def detection_postprocessing(scores, geometry, preprocessed_image):
+def detection_postprocessing(detection_response,preprocessed_images):
     def fourPointsTransform(frame, vertices):
         vertices = np.asarray(vertices)
         outputSize = (100, 32)
@@ -126,29 +127,43 @@ def detection_postprocessing(scores, geometry, preprocessed_image):
         # Return detections and confidences
         return [detections, confidences]
 
-    scores = scores.transpose(0, 3, 1, 2)
-    geometry = geometry.transpose(0, 3, 1, 2)
-    frame = np.squeeze(preprocessed_image, axis=0)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    [boxes, confidences] = decodeBoundingBoxes(scores, geometry)
-    indices = cv2.dnn.NMSBoxesRotated(boxes, confidences, 0.5, 0.4)
+    # Process responses from detection model
+    scores = detection_response.as_numpy("feature_fusion/Conv_7/Sigmoid:0")
+    geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
+    cropped_images = []
+    for i in range(preprocessed_images.shape[0]): # crop image one by one
+        # matching dimension
+        preprocessed_image = np.array([preprocessed_images[i]]) # (1, 480, 640, 3)
+        scores_each = np.array([scores[i]]).transpose(0, 3, 1, 2)
+        geometry_each = np.array([geometry[i]]).transpose(0, 3, 1, 2)
+        print(preprocessed_image.shape)
 
-    cropped_list = []
-    cv2.imwrite("frame.png", frame) # TODO: move to /intermediates
-    count = 0
-    for i in indices:
-        # get 4 corners of the rotated rect
-        count += 1
-        vertices = cv2.boxPoints(boxes[i])
-        cropped = fourPointsTransform(frame, vertices)
-        cv2.imwrite(str(count) + ".png", cropped) # TODO: move to /intermediates
-        cropped = np.expand_dims(cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY), axis=0)
-        cropped_list.append(((cropped / 255.0) - 0.5) * 2)
-        print(cropped.shape)
-    cropped_arr = np.stack(cropped_list, axis=0)
-    print(cropped_arr.shape)
+        frame = np.squeeze(preprocessed_image, axis=0)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        [boxes, confidences] = decodeBoundingBoxes(scores_each, geometry_each)
+        indices = cv2.dnn.NMSBoxesRotated(boxes, confidences, 0.5, 0.4)
 
-    return cropped_arr
+        cropped_list = []
+        cv2.imwrite("../intermediates/frame.png", frame) # TODO: move to /intermediates √
+        count = 0
+        for i in indices:
+            # get 4 corners of the rotated rect
+            count += 1
+            vertices = cv2.boxPoints(boxes[i])
+            cropped = fourPointsTransform(frame, vertices)
+            cv2.imwrite("../intermediates/"+str(count) + ".png", cropped) # TODO: move to /intermediates √
+            cropped = np.expand_dims(cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY), axis=0)
+            cropped_list.append(((cropped / 255.0) - 0.5) * 2)
+            print(cropped.shape)
+        if(len(cropped_list)>1):
+            cropped_arr = np.stack(cropped_list, axis=0)
+        else:
+            cropped_arr = np.array(cropped_list)
+        print(cropped_arr.shape)
+        cropped_images.extend(cropped_arr)
+
+    return cropped_images
+
 
 def recognition_postprocessing(scores: np.ndarray) -> str:
     alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -174,70 +189,135 @@ def recognition_postprocessing(scores: np.ndarray) -> str:
         final_text = "".join(char_list)
         final_text_list.append(final_text)
     return final_text_list
-
+    
 if __name__ == "__main__":
-    t0 = time.time()
-    # Setting up client
-    client = httpclient.InferenceServerClient(url="localhost:8000")
 
-    # Read image and create input object
-    raw_image1 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG")
-    raw_image2 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG")
-    # TODO: Use another python program image_pipeline.py to send all input images to this client
-    # Here 2 images are batched together. We can tune the number of images in a batch in image_pipeline
-    preprocessed_image1 = detection_preprocessing(raw_image1) # (1, 480, 640, 3), 1 being batch size
-    preprocessed_image2 = detection_preprocessing(raw_image2) # (1, 480, 640, 3)
-    preprocessed_images = np.stack([
-        preprocessed_image1[0],
-        preprocessed_image2[0]
-    ], axis=0) # matching dimension: (2, 480, 640, 3), now batching 2
-    t1 = time.time()
-    print("Preprocessing succeeded, took %d ms." % (t1 - t0))
+    if len(sys.argv) < 2:
+        print("Not pipeline!")
+        # Alicia's original code
+        
+        t0 = time.time()
 
-    detection_input = httpclient.InferInput(
-        "input_images:0", preprocessed_images.shape, datatype="FP32" 
-    )
-    detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
-    # TODO: After setting up image_pipeline, see if batching had made
-    # the time difference detectable, now it is almost always 0 ms.
+        # Setting up client
+        client = httpclient.InferenceServerClient(url="localhost:8000")
 
-    # Query the server
-    detection_response = client.infer(
-        model_name="text_detection", inputs=[detection_input]
-    )
-    t2 = time.time()
-    print("Text detection succeeded, took %d ms." % (t2 - t1))
+        # Read image and create input object
+        raw_image1 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG")
+        raw_image2 = cv2.imread("../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG")
+        # Here 2 images are batched together. We can tune the number of images in a batch in image_pipeline
+        preprocessed_image1 = detection_preprocessing(raw_image1) # (1, 480, 640, 3), 1 being batch size
+        preprocessed_image2 = detection_preprocessing(raw_image2) # (1, 480, 640, 3)
+        preprocessed_images = np.stack([
+            preprocessed_image1[0],
+            preprocessed_image2[0]
+        ], axis=0) # matching dimension: (2, 480, 640, 3), now batching 2
+        t1 = time.time()
+        print("Preprocessing succeeded, took %d ms." % (t1 - t0))
 
-    # Process responses from detection model
-    scores = detection_response.as_numpy("feature_fusion/Conv_7/Sigmoid:0")
-    geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
-    cropped_images = []
-    # TODO: Wrap batch detection postprocessing to a single method 
-    # (just move this for loop intodetection_postprocessing?)
-    for i in range(preprocessed_images.shape[0]): # crop image one by one
-        # matching dimension
-        preprocessed_image = np.array([preprocessed_images[i]]) # (1, 480, 640, 3)
-        scores_each = np.array([scores[i]])
-        geometry_each = np.array([geometry[i]])
-        print(preprocessed_image.shape)
-        cropped_images.extend(detection_postprocessing(scores_each, geometry_each, preprocessed_image))
-    t3 = time.time()
-    cropped_images = np.array(cropped_images)
-    print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
+        detection_input = httpclient.InferInput(
+            "input_images:0", preprocessed_images.shape, datatype="FP32" 
+        )
+        detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
+        # the time difference detectable, now it is almost always 0 ms.
 
-    # Create input object for recognition model
-    recognition_input = httpclient.InferInput(
-        "input.1", cropped_images.shape, datatype="FP32"
-    )
-    recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
+        # Query the server
+        detection_response = client.infer(
+            model_name="text_detection", inputs=[detection_input]
+        )
+        t2 = time.time()
+        print("Text detection succeeded, took %d ms." % (t2 - t1))
 
-    # Query the server
-    recognition_response = client.infer(
-        model_name="text_recognition", inputs=[recognition_input]
-    )
-    t4 = time.time()
-    print("Text detection succeeded, took %d ms." % (t4 - t3))
-    # Process response from recognition model
-    final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+        # Process responses from detection model
+        scores = detection_response.as_numpy("feature_fusion/Conv_7/Sigmoid:0")
+        geometry = detection_response.as_numpy("feature_fusion/concat_3:0")
+        cropped_images = []
+        # (just move this for loop intodetection_postprocessing?)
+        for i in range(preprocessed_images.shape[0]): # crop image one by one
+            # matching dimension
+            preprocessed_image = np.array([preprocessed_images[i]]) # (1, 480, 640, 3)
+            scores_each = np.array([scores[i]])
+            geometry_each = np.array([geometry[i]])
+            print(preprocessed_image.shape)
+            cropped_images.extend(detection_postprocessing(scores_each, geometry_each, preprocessed_image))
+        t3 = time.time()
+        cropped_images = np.array(cropped_images)
+        print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
 
-    print(final_text)
+        # Create input object for recognition model
+        recognition_input = httpclient.InferInput(
+            "input.1", cropped_images.shape, datatype="FP32"
+        )
+        recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
+
+        # Query the server
+        recognition_response = client.infer(
+            model_name="text_recognition", inputs=[recognition_input]
+        )
+        t4 = time.time()
+        print("Text detection succeeded, took %d ms." % (t4 - t3))
+        # Process response from recognition model
+        final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+
+        print(final_text)
+    
+    else:
+        image_paths = sys.argv[1:]
+        print("Pipeline batch size: "+str(len(image_paths))+"!")
+        t0 = time.time()
+
+        # Setting up client
+        client = httpclient.InferenceServerClient(url="localhost:8000")
+
+        # Read image and create input object
+        raw_images = []
+        for path in image_paths:
+            raw_images.append(cv2.imread(path))
+
+        # TODO: Use another python program image_pipeline.py to send all input images to this client  √
+        preprocessed_images = []
+        for raw_image in raw_images:
+            preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
+        preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
+        print("Stacked images dimensions:", preprocessed_images.shape)
+        t1 = time.time()
+        # TODO: After setting up image_pipeline, see if batching had made
+        # the time difference detectable, now it is almost always 0 ms.  √ (Hi Alicia! We should not set it as %d, which means integer here)
+        print("Preprocessing succeeded, took %.5f ms." % (t1 - t0))
+
+        detection_input = httpclient.InferInput(
+            "input_images:0", preprocessed_images.shape, datatype="FP32" 
+        )
+        detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
+
+        # Query the server
+        detection_response = client.infer(
+            model_name="text_detection", inputs=[detection_input]
+        )
+        t2 = time.time()
+        print("Text detection succeeded, took %d ms." % (t2 - t1))
+
+        # TODO: Wrap batch detection postprocessing to a single method √
+        # (just move this for loop into detection_postprocessing?)
+        cropped_images = detection_postprocessing(detection_response,preprocessed_images)
+        t3 = time.time()
+        cropped_images = np.array(cropped_images)
+        print("Cropped image based on detection, got %d sub images, took %d ms." % (len(cropped_images), (t3 - t2)))
+
+        # Create input object for recognition model
+        recognition_input = httpclient.InferInput(
+            "input.1", cropped_images.shape, datatype="FP32"
+        )
+        recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
+
+        # Query the server
+        recognition_response = client.infer(
+            model_name="text_recognition", inputs=[recognition_input]
+        )
+        t4 = time.time()
+        print("Text detection succeeded, took %d ms." % (t4 - t3))
+        # Process response from recognition model
+        final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+
+        print(final_text)
+    
+    

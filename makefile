@@ -3,7 +3,10 @@ MODEL_REPO=$(BASEDIR)/model_repository
 OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
-IMAGE_CLIENT1=$(BASEDIR)/client.py
+IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
+MIN_INTERVAL := 1
+MAX_INTERVAL := 5
+BATCH_SIZE := 2
 
 $(OPEN_CV):
 	wget https://www.dropbox.com/s/r2ingd0l3zt8hxs/frozen_east_text_detection.tar.gz
@@ -46,6 +49,9 @@ triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 
 test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
+
+test-image-pipeline: $(IMAGE_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)
 
 test-audio: triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
