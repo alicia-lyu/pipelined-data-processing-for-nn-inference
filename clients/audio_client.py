@@ -24,15 +24,11 @@ inputs = [
 ]
 inputs[0].set_data_from_numpy(input_values.numpy())
 
+# query server
 results = client.infer(model_name="speech_recognition", inputs=inputs)
-print(results.get_response())
-print(results.get_output("output"))
-print(results.as_numpy("output"))
-# retrieve logits & take argmax
-# logits = results.logits
-predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
 
-# transcribe
+# process response / transcribe
+predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
 transcription = processor.decode(predicted_ids[0])
 
 print(transcription)
