@@ -1,44 +1,30 @@
-# TODO: send images one by one to image_client.py, data arrival ~ uniform distribution
-import os
-import time
-import random
-import subprocess
-import argparse
+from image_client import main as client, Message
+from multiprocessing import Pipe
+from multiprocessing.connection import Connection
+from image_subprocesses import batch_arrival, get_batch_args
 
-def send_images(folder_path, client_script,min_interval,max_interval,batch_size):
-    image_paths = read_images_from_folder(folder_path)
+def schedule(min_interval, max_interval, batch_size):
+    parent_pipe, child_pipe = Pipe()
+    batch_arrival(min_interval, max_interval, batch_size, \
+            lambda batch, id : create_client(batch, id, child_pipe, parent_pipe))
+    # TODO: Make batch_arrival non-blocking, so that the while loop can happen in the same time as batch_arrival (using thread?)
+    
+    while True:
+        client_id, signal_type = parent_pipe.recv()
+        # TODO: Maintain a hashmap of all active process (started but not finished) (id -> stage)
+        # TODO: Update hashmap: Update the stage of the process when receiving its message; delete it if it will complete, i.e. won't be blocked by wait_signal again
+        
+        if signal_type == Message.CPU_AVAILABLE:
+            # TODO: Schedule the incomplete process with the smallest id in the hashmap
+            # TODO: Update hashmap: Add the process that is first scheduled OR update the stage of an active process
+            pass
 
-    for i in range(0, len(image_paths), batch_size):
-    # for i in range(0, batch_size*2, batch_size):
-        batch = image_paths[i:i + batch_size]
-        batch_argument = " ".join(batch)
-        subprocess.run(["python", client_script] + batch)
-
-        interval = random.uniform(min_interval, max_interval)
-        time.sleep(interval)
-
-def read_images_from_folder(root_folder):
-    image_paths = []
-
-    for root, dirs, files in os.walk(root_folder):
-        for file in files:
-            if file.lower().endswith(".jpg"):
-                image_path = os.path.join(root, file)
-                image_paths.append(image_path)
-
-    return image_paths
+def create_client(image_paths, process_id, child_pipe, parent_pipe):
+    client(image_paths, process_id, child_pipe)
+    if process_id == 0: # start the first process upon creation
+        parent_pipe.send((0, Message.CPU_AVAILABLE))
+    
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="set pipeline data arrival interval")
-
-    parser.add_argument("--min", type=int, default=1, help="Minimum data arrival interval")
-    parser.add_argument("--max", type=int, default=5, help="Maximum data arrival interval")
-    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
-
-    args = parser.parse_args()
-
-    folder_path = "../../datasets/SceneTrialTrain"
-    client_script = "image_client.py"
-
-    send_images(folder_path, client_script,args.min,args.max,args.batch_size)
+    args = get_batch_args()
+    schedule(args.min, args.max, args.batch_size)

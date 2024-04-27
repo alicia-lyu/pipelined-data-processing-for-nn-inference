@@ -31,10 +31,13 @@ import numpy as np
 import tritonclient.http as httpclient
 import time
 import sys
-
+from multiprocessing.connection import Connection
+from enum import Enum
 
 SAVE_INTERMEDIATE_IMAGES = False
 
+class Message(Enum):
+    CPU_AVAILABLE = 0
 
 def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
     inpWidth = 640
@@ -186,13 +189,31 @@ def recognition_postprocessing(scores: np.ndarray) -> str:
         final_text_list.append(final_text)
     return final_text_list
     
-def main(image_paths, child_pipe = None):
-    t0 = time.time()
+def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
+    if signal_pipe == None: # Not coordinating multiple processes
+        return
+    start = time.time()
+    while True:
+        receiver_id, signal_type = signal_pipe.recv()
+        if receiver_id == process_id and signal_type == signal_awaited:
+            break
+    end = time.time()
+    print("Process %d waited for signal for %.5f." % process_id, signal_awaited)
 
-    # Setting up client
+def send_signal(process_id, signal_to_send, signal_pipe: Connection):
+    if signal_pipe == None: # Not coordinating multiple processes
+        return
+    signal_pipe.send((process_id, signal_to_send))
+
+def main(image_paths, process_id = 0, signal_pipe: Connection = None):
+
+    #### PREPROCESSING (CPU)
+    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    # Only one process occupies CPU to ensure meeting latency SLO
+    # TODO: Enable a certain number of processes to run together, as we have multi-core CPU? Use semaphore or multiprocess.Queue?
+    t0 = time.time()
     client = httpclient.InferenceServerClient(url="localhost:8000")
 
-    # Read image and create input object
     raw_images = []
     for path in image_paths:
         raw_images.append(cv2.imread(path))
@@ -206,18 +227,26 @@ def main(image_paths, child_pipe = None):
     t1 = time.time()
     print("Detection preprocessing succeeded, took %.5f ms." % (t1 - t0))
 
+    #### DETECTION INFERENCE (GPU)
     detection_input = httpclient.InferInput(
         "input_images:0", preprocessed_images.shape, datatype="FP32" 
     )
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
-    # Query the server
+    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
+
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
     )
+    # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
+    # This should be fine, as the task here is not compute-intensive
     t2 = time.time()
     print("Text detection succeeded, took %.5f ms." % (t2 - t1))
 
+    #### CROPPING (CPU)
+    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
+    # Depending on parent to schedule the first process, i.e., the process that has waited the longest
+    # FIFO policy. Assuming there is no priority among processes
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
     cropped_images = np.array(cropped_images, dtype=np.single)
 
@@ -226,21 +255,22 @@ def main(image_paths, child_pipe = None):
     t3 = time.time()
     print("Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
 
-    # Create input object for recognition model
+    #### RECOGNITION INFERENCE (GPU)
     recognition_input = httpclient.InferInput(
         "input.1", cropped_images.shape, datatype="FP32"
     )
     recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
-
-    # Query the server
+    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     recognition_response = client.infer(
         model_name="text_recognition", inputs=[recognition_input]
     )
     t4 = time.time()
     print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
-    # Process response from recognition model
-    final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
 
+    #### POSTPROCESSING (CPU)
+    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+    
     return final_text;
 
 if __name__ == "__main__":
