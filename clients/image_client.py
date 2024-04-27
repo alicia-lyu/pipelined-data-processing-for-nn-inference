@@ -193,6 +193,7 @@ def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
         return
     start = time.time()
+    # send a signal that it is waiting
     while True:
         receiver_id, signal_type = signal_pipe.recv()
         if receiver_id == process_id and signal_type == signal_awaited:

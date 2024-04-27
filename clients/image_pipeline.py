@@ -20,9 +20,10 @@ def schedule(min_interval, max_interval, batch_size):
             pass
 
 def create_client(image_paths, process_id, child_pipe, parent_pipe):
-    client(image_paths, process_id, child_pipe)
+    # multiprocessing.??(target=client, args=[])
     if process_id == 0: # start the first process upon creation
         parent_pipe.send((0, Message.CPU_AVAILABLE))
+        # TODO initiate hashmap and add client 0
     
 
 if __name__ == "__main__":
