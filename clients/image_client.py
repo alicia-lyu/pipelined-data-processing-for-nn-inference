@@ -186,20 +186,7 @@ def recognition_postprocessing(scores: np.ndarray) -> str:
         final_text_list.append(final_text)
     return final_text_list
     
-if __name__ == "__main__":
-
-    if len(sys.argv) < 2:
-        print("Not pipeline!")
-
-        image_paths = [
-            "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG",
-            "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG"
-        ]
-    
-    else:
-        image_paths = sys.argv[1:]
-        print("Pipeline batch size: "+str(len(image_paths))+"!")
-    
+def main(image_paths, child_pipe = None):
     t0 = time.time()
 
     # Setting up client
@@ -253,6 +240,22 @@ if __name__ == "__main__":
     print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
     # Process response from recognition model
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+
+    return final_text;
+
+if __name__ == "__main__":
+
+    if len(sys.argv) < 2:
+        print("Not pipeline!")
+        image_paths = [
+            "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG",
+            "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG"
+        ]
+    else:
+        image_paths = sys.argv[1:]
+        print("Pipeline batch size: "+str(len(image_paths))+"!")
+
+    final_text = main(image_paths)
 
     print(final_text)
     
