@@ -1,10 +1,8 @@
 from image_client import main as client, Message, Stage, CPUState
-from multiprocessing import Pipe
+from multiprocessing import Pipe, Process
 from multiprocessing.connection import Connection
-import multiprocessing
 from typing import Callable, Dict, List
-from image_subprocesses import batch_arrival, get_batch_args
-from utils import trace
+from utils import trace, batch_arrival, get_batch_args, read_images_from_folder, IMAGE_FOLDER
 from policies import non_sharing_pipeline
 
 # grant CPU to a child process and update its stage and state accordingly
@@ -37,15 +35,18 @@ def relinquish_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_sta
 
 @trace(__file__)
 def schedule(parent_pipe: Connection, 
-             grant_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None], 
-             relinquish_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None]
+             grant_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None],
+             relinquish_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None],
+             policy_func: Callable[[Connection, Dict[int, Stage], Dict[int, CPUState], bool, Callable[[int], None]], None]
              ) -> None:
+    
     hashmap_stage: Dict[int, Stage] = {}
     hashmap_state: Dict[int, CPUState] = {}
     cpu_using: bool = False # Only one process occupies CPU to ensure meeting latency SLO
     
     # Act on received signal from a child
-    while True:
+    while True: 
+        # TODO: Add a timeout to break the loop when there is no client in the hashmap and no signal received for a while
         client_id, signal_type = parent_pipe.recv()
         client_id = int(client_id)
         print(schedule.trace_prefix(), f"Received signal {signal_type} from {client_id}", hashmap_stage, hashmap_state)
@@ -62,20 +63,26 @@ def schedule(parent_pipe: Connection,
             hashmap_state[client_id] = CPUState.WAITING_FOR_CPU
 
         if not cpu_using:
-            non_sharing_pipeline(parent_pipe, hashmap_stage, hashmap_state, cpu_using, grant_cpu)
+            policy_func(parent_pipe, hashmap_stage, hashmap_state, cpu_using, grant_cpu_func)
 
 @trace(__file__)
 def create_client(image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
     child_pipe.send((process_id, Message.CREATE_PROCESS))
-    p = multiprocessing.Process(target=client, args=(image_paths, process_id, child_pipe))
+    p = Process(target=client, args=(image_paths, process_id, child_pipe))
     p.start()
 
 if __name__ == "__main__":
     args = get_batch_args()
+    # TODO: Tune min_interval and max_interval so that the next request arrive when the last is not finished. 
+    # The default values doesn't stress CPU or GPU at all.
+
     parent_pipe, child_pipe = Pipe()
+
     # Non-blocking (run at the same time with the scheduler): images arrive in batch
-    p = multiprocessing.Process(target=batch_arrival, \
+    batch_arrival_process = Process(target=batch_arrival, \
                                 args=(args.min, args.max, args.batch_size, \
-                                      lambda batch, id: create_client(batch, id, child_pipe)))
-    p.start()
-    schedule(parent_pipe, grant_cpu, relinquish_cpu)
+                                    read_images_from_folder(IMAGE_FOLDER), \
+                                    lambda batch, id: create_client(batch, id, child_pipe)))
+    batch_arrival_process.start()
+
+    schedule(parent_pipe, grant_cpu, relinquish_cpu, non_sharing_pipeline)
