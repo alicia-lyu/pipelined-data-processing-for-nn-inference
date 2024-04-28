@@ -4,7 +4,7 @@ def trace(file_name):
             ret = func(*args, **kwargs)
 
             def trace_prefix():
-                return f"{file_name}, {func.__name__}: "
+                return f"***{file_name}, {func.__name__}***"
 
             func.trace_prefix = trace_prefix
             return ret

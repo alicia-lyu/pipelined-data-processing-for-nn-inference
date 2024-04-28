@@ -9,6 +9,7 @@ from utils import trace
 # grant CPU to a child process and update its stage and state accordingly
 @trace(__file__)
 def grant_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: Dict[int, CPUState]) -> None:
+    print(grant_cpu.trace_prefix(), f"Granted CPU to {process_id}, originally {hashmap_stage[process_id]}, {hashmap_state[process_id]}")
     if hashmap_stage[process_id] == Stage.NOT_START:
         hashmap_stage[process_id] = Stage.PREPROCESSING
         hashmap_state[process_id] = CPUState.CPU
@@ -22,6 +23,7 @@ def grant_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: D
 # Update the stage and state of a child client when it relinquishes CPU
 @trace(__file__)
 def relinquish_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: Dict[int, CPUState]) -> None:
+    print(relinquish_cpu.trace_prefix(), f"{process_id} relinquished CPU, originally {hashmap_stage[process_id]}, {hashmap_state[process_id]}")
     if hashmap_stage[process_id] == Stage.POSTPROCESSING: # Finished all stages
         del hashmap_stage[process_id]
         del hashmap_state[process_id]
@@ -39,9 +41,10 @@ def schedule(parent_pipe: Connection,
              ) -> None:
     hashmap_stage: Dict[int, Stage] = {}
     hashmap_state: Dict[int, CPUState] = {}
-    cpu_using: bool = False
+    cpu_using: bool = False # Only one process occupies CPU to ensure meeting latency SLO
 
     # Allocate CPU to the eligible client with the smallest id (FIFO)
+    @trace(__file__)
     def try_run_cpu() -> None:
         nonlocal parent_pipe, hashmap_stage, hashmap_state, cpu_using
         assert(cpu_using == False)
@@ -54,14 +57,14 @@ def schedule(parent_pipe: Connection,
         except ValueError:
             print("No client to allocate the spare CPU. Hashmap_stage:", hashmap_stage)
             cpu_using = False
+        else:
+            print(schedule.trace_prefix(), f"CPU is allocated to {min_process_id}.")
     
     # Act on received signal from a child
     while True:
         client_id, signal_type = parent_pipe.recv()
         client_id = int(client_id)
-        print("pipeline received:", client_id, signal_type, cpu_using)
-        print(hashmap_stage)
-        print(hashmap_state)
+        print(schedule.trace_prefix(), f"Received signal {signal_type} from {client_id}", hashmap_stage, hashmap_state)
         # A child client is first created (in create_client)
         if signal_type == Message.CREATE_PROCESS:
             hashmap_stage[client_id] = Stage.NOT_START

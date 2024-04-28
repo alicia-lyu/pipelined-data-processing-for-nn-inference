@@ -38,22 +38,22 @@ from utils import trace
 SAVE_INTERMEDIATE_IMAGES = False
 
 class Message(Enum):
-    CPU_AVAILABLE = 0
-    WAITING_FOR_CPU = 1
-    CREATE_PROCESS = 2
+    CPU_AVAILABLE = "CPU_AVAILABLE"
+    WAITING_FOR_CPU = "WAITING_FOR_CPU"
+    CREATE_PROCESS = "CREATE_PROCESS"
 
 class Stage(Enum):
-    NOT_START = 0
-    PREPROCESSING = 1
-    DETECTION_INFERENCE = 2
-    CROPPING = 3
-    RECOGNITION_INFERENCE = 4
-    POSTPROCESSING = 5
+    NOT_START = "NOT_START"
+    PREPROCESSING = "PREPROCESSING"
+    DETECTION_INFERENCE = "DETECTION_INFERENCE"
+    CROPPING = "CROPPING"
+    RECOGNITION_INFERENCE = "RECOGNITION_INFERENCE"
+    POSTPROCESSING = "POSTPROCESSING"
 
 class CPUState(Enum):
-    CPU = 0
-    GPU = 1
-    WAITING_FOR_CPU = 2
+    CPU = "CPU"
+    GPU = "GPU"
+    WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
 def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
     inpWidth = 640
@@ -215,20 +215,19 @@ def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
         if receiver_id == process_id and signal_type == signal_awaited:
             break
     end = time.time()
-    print("Process %d waited for signal for %.5f." % (process_id, end-start), signal_awaited)
+    print(wait_signal.trace_prefix(), "Process %d waited for signal %s for %.5f." % process_id, signal_awaited, end - start)
 
 @trace(__file__)
 def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
         return
     signal_pipe.send((process_id, signal_to_send))
+    print(send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
 
 @trace(__file__)
 def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
-    # Only one process occupies CPU to ensure meeting latency SLO
-    # TODO: Enable a certain number of processes to run together, as we have multi-core CPU? Use semaphore or multiprocess.Queue?
     print(process_id,"PREPROCESSING start")
 
     t0 = time.time()
@@ -300,6 +299,8 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     print(process_id,"POSTPROCESSING finish")
+
+    # TODO: Collect stats about the time taken for each stage and write to a file
     
     return final_text
 
