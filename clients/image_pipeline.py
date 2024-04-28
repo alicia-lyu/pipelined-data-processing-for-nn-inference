@@ -4,8 +4,10 @@ from multiprocessing.connection import Connection
 import multiprocessing
 from typing import Callable, Dict, List
 from image_subprocesses import batch_arrival, get_batch_args
+from utils import trace
 
 # grant CPU to a child process and update its stage and state accordingly
+@trace(__file__)
 def grant_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: Dict[int, CPUState]) -> None:
     if hashmap_stage[process_id] == Stage.NOT_START:
         hashmap_stage[process_id] = Stage.PREPROCESSING
@@ -18,6 +20,7 @@ def grant_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: D
         hashmap_state[process_id] = CPUState.CPU
 
 # Update the stage and state of a child client when it relinquishes CPU
+@trace(__file__)
 def relinquish_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: Dict[int, CPUState]) -> None:
     if hashmap_stage[process_id] == Stage.POSTPROCESSING: # Finished all stages
         del hashmap_stage[process_id]
@@ -29,8 +32,11 @@ def relinquish_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_sta
         hashmap_stage[process_id] = Stage.RECOGNITION_INFERENCE
         hashmap_state[process_id] = CPUState.GPU
 
-def schedule(parent_pipe: Connection, grant_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None], 
-             relinquish_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None]) -> None:
+@trace(__file__)
+def schedule(parent_pipe: Connection, 
+             grant_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None], 
+             relinquish_cpu_func: Callable[[int, Dict[int, Stage], Dict[int, CPUState]], None]
+             ) -> None:
     hashmap_stage: Dict[int, Stage] = {}
     hashmap_state: Dict[int, CPUState] = {}
     cpu_using: bool = False
@@ -72,6 +78,7 @@ def schedule(parent_pipe: Connection, grant_cpu_func: Callable[[int, Dict[int, S
             if not cpu_using: # When the CPU is not allocated when it first became available
                 try_run_cpu()
 
+@trace(__file__)
 def create_client(image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
     child_pipe.send((process_id, Message.CREATE_PROCESS))
     p = multiprocessing.Process(target=client, args=(image_paths, process_id, child_pipe))

@@ -33,6 +33,7 @@ import time
 import sys
 from multiprocessing.connection import Connection
 from enum import Enum
+from utils import trace
 
 SAVE_INTERMEDIATE_IMAGES = False
 
@@ -178,7 +179,6 @@ def detection_postprocessing(detection_response,preprocessed_images):
 
     return cropped_images
 
-
 def recognition_postprocessing(scores: np.ndarray) -> str:
     alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -203,7 +203,8 @@ def recognition_postprocessing(scores: np.ndarray) -> str:
         final_text = "".join(char_list)
         final_text_list.append(final_text)
     return final_text_list
-    
+
+@trace(__file__)
 def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
         return
@@ -216,11 +217,13 @@ def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
     end = time.time()
     print("Process %d waited for signal for %.5f." % (process_id, end-start), signal_awaited)
 
+@trace(__file__)
 def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
         return
     signal_pipe.send((process_id, signal_to_send))
 
+@trace(__file__)
 def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)

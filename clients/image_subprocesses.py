@@ -4,16 +4,16 @@ import time
 import random
 import subprocess
 import argparse
+from utils import trace
 
 CLIENT = "image_client.py"
 IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
 
+@trace(__file__)
 def run_subprocess(image_paths, id):
     subprocess.run(["python", CLIENT] + image_paths)
 
-def run_subprocess(image_paths, id):
-    subprocess.run(["python", CLIENT] + image_paths)
-
+@trace(__file__)
 def batch_arrival(min_interval, max_interval, batch_size, target):
     image_paths = read_images_from_folder(IMAGE_FOLDER)
 
@@ -26,6 +26,7 @@ def batch_arrival(min_interval, max_interval, batch_size, target):
     
     return i % batch_size + 1 # number of clients
 
+@trace(__file__)
 def read_images_from_folder(root_folder):
     image_paths = []
 
@@ -37,6 +38,7 @@ def read_images_from_folder(root_folder):
 
     return image_paths
 
+@trace(__file__)
 def get_batch_args():
     parser = argparse.ArgumentParser(description="set pipeline data arrival interval")
 
