@@ -38,6 +38,21 @@ SAVE_INTERMEDIATE_IMAGES = False
 
 class Message(Enum):
     CPU_AVAILABLE = 0
+    WAITING_FOR_CPU = 1
+    CREATE_PROCESS = 2
+
+class Stage(Enum):
+    NOT_START = 0
+    PREPROCESSING = 1
+    DETECTION_INFERENCE = 2
+    CROPPING = 3
+    RECOGNITION_INFERENCE = 4
+    POSTPROCESSING = 5
+
+class CPUState(Enum):
+    CPU = 0
+    GPU = 1
+    WAITING_FOR_CPU = 2
 
 def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
     inpWidth = 640
@@ -199,7 +214,7 @@ def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
         if receiver_id == process_id and signal_type == signal_awaited:
             break
     end = time.time()
-    print("Process %d waited for signal for %.5f." % process_id, signal_awaited)
+    print("Process %d waited for signal for %.5f." % (process_id, end-start), signal_awaited)
 
 def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
@@ -207,11 +222,12 @@ def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     signal_pipe.send((process_id, signal_to_send))
 
 def main(image_paths, process_id = 0, signal_pipe: Connection = None):
-
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     # Only one process occupies CPU to ensure meeting latency SLO
     # TODO: Enable a certain number of processes to run together, as we have multi-core CPU? Use semaphore or multiprocess.Queue?
+    print(process_id,"PREPROCESSING start")
+
     t0 = time.time()
     client = httpclient.InferenceServerClient(url="localhost:8000")
 
@@ -223,10 +239,10 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     for raw_image in raw_images:
         preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
     preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
-    print("Stacked images dimensions:", preprocessed_images.shape)
-    
+    # print("Stacked images dimensions:", preprocessed_images.shape)
+
     t1 = time.time()
-    print("Detection preprocessing succeeded, took %.5f ms." % (t1 - t0))
+    # print("Detection preprocessing succeeded, took %.5f ms." % (t1 - t0))
 
     #### DETECTION INFERENCE (GPU)
     detection_input = httpclient.InferInput(
@@ -235,6 +251,7 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
+    print(process_id,"PREPROCESSING finish, DETECTION INFERENCE start")
 
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
@@ -242,10 +259,13 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
     # This should be fine, as the task here is not compute-intensive
     t2 = time.time()
-    print("Text detection succeeded, took %.5f ms." % (t2 - t1))
+    # print("Text detection succeeded, took %.5f ms." % (t2 - t1))
 
     #### CROPPING (CPU)
+    print(process_id,"DETECTION INFERENCE finish")
+    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
+    print(process_id,"CROPPING start")
     # Depending on parent to schedule the first process, i.e., the process that has waited the longest
     # FIFO policy. Assuming there is no priority among processes
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
@@ -254,25 +274,31 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     if cropped_images.shape[0] == 0:
         exit(0)
     t3 = time.time()
-    print("Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
+    # print("Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
 
     #### RECOGNITION INFERENCE (GPU)
     recognition_input = httpclient.InferInput(
         "input.1", cropped_images.shape, datatype="FP32"
     )
     recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
+    print(process_id,"CROPPING finish, RECOGNITION INFERENCE start")
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     recognition_response = client.infer(
         model_name="text_recognition", inputs=[recognition_input]
     )
     t4 = time.time()
-    print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
+    # print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
 
     #### POSTPROCESSING (CPU)
+    print(process_id,"RECOGNITION INFERENCE finish")
+    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
+    print(process_id,"POSTPROCESSING start")
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    print(process_id,"POSTPROCESSING finish")
     
-    return final_text;
+    return final_text
 
 if __name__ == "__main__":
 

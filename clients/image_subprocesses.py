@@ -11,13 +11,16 @@ IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
 def run_subprocess(image_paths, id):
     subprocess.run(["python", CLIENT] + image_paths)
 
+def run_subprocess(image_paths, id):
+    subprocess.run(["python", CLIENT] + image_paths)
+
 def batch_arrival(min_interval, max_interval, batch_size, target):
     image_paths = read_images_from_folder(IMAGE_FOLDER)
 
     for i in range(0, len(image_paths), batch_size):
     # for i in range(0, batch_size*2, batch_size):
         batch = image_paths[i: i + batch_size]
-        target(batch, i % batch_size)
+        target(batch, i / batch_size)
         interval = random.uniform(min_interval, max_interval)
         time.sleep(interval)
     

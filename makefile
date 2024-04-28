@@ -5,7 +5,7 @@ RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
 MIN_INTERVAL := 1
-MAX_INTERVAL := 5
+MAX_INTERVAL := 2
 BATCH_SIZE := 2
 
 $(OPEN_CV):
@@ -52,6 +52,9 @@ test-image: $(IMAGE_CLIENT1) triton-server
 
 test-image-subprocesses: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)
+
+test-image-pipeline: $(IMAGE_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./image_pipeline.py
 
 test-audio: triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
