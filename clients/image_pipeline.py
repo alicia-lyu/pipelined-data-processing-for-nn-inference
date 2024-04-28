@@ -5,6 +5,7 @@ import multiprocessing
 from typing import Callable, Dict, List
 from image_subprocesses import batch_arrival, get_batch_args
 from utils import trace
+from policies import non_sharing_pipeline
 
 # grant CPU to a child process and update its stage and state accordingly
 @trace(__file__)
@@ -42,23 +43,6 @@ def schedule(parent_pipe: Connection,
     hashmap_stage: Dict[int, Stage] = {}
     hashmap_state: Dict[int, CPUState] = {}
     cpu_using: bool = False # Only one process occupies CPU to ensure meeting latency SLO
-
-    # Allocate CPU to the eligible client with the smallest id (FIFO)
-    @trace(__file__)
-    def try_run_cpu() -> None:
-        nonlocal parent_pipe, hashmap_stage, hashmap_state, cpu_using
-        assert(cpu_using == False)
-        try:
-            min_process_id = min(key for key, value in hashmap_state.items() if value == CPUState.WAITING_FOR_CPU)
-            min_process_id = int(min_process_id)
-            grant_cpu_func(min_process_id, hashmap_stage, hashmap_state)
-            parent_pipe.send((min_process_id, Message.CPU_AVAILABLE))
-            cpu_using = True
-        except ValueError:
-            print("No client to allocate the spare CPU. Hashmap_stage:", hashmap_stage)
-            cpu_using = False
-        else:
-            print(schedule.trace_prefix(), f"CPU is allocated to {min_process_id}.")
     
     # Act on received signal from a child
     while True:
@@ -69,17 +53,16 @@ def schedule(parent_pipe: Connection,
         if signal_type == Message.CREATE_PROCESS:
             hashmap_stage[client_id] = Stage.NOT_START
             hashmap_state[client_id] = CPUState.WAITING_FOR_CPU
-            if not cpu_using:
-                try_run_cpu()
         # A child client relinquishes CPU
         elif signal_type == Message.CPU_AVAILABLE:
             relinquish_cpu_func(client_id, hashmap_stage, hashmap_state)
-            try_run_cpu()
+            cpu_using = False
          # A child client finishes GPU tasks and is now waiting for CPU
         elif signal_type == Message.WAITING_FOR_CPU:
             hashmap_state[client_id] = CPUState.WAITING_FOR_CPU
-            if not cpu_using: # When the CPU is not allocated when it first became available
-                try_run_cpu()
+
+        if not cpu_using:
+            non_sharing_pipeline(parent_pipe, hashmap_stage, hashmap_state, cpu_using, grant_cpu)
 
 @trace(__file__)
 def create_client(image_paths: List[str], process_id: int, child_pipe: Connection) -> None:

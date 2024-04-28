@@ -1,13 +1,11 @@
-def trace(file_name):
-    def decorator(func):
-        def newfunc(*args, **kwargs):
-            ret = func(*args, **kwargs)
+from typing import Callable
+import os
 
-            def trace_prefix():
-                return f"***{file_name}, {func.__name__}***"
-
-            func.trace_prefix = trace_prefix
-            return ret
-
-        return newfunc
+def trace(path: str):
+    file_name = os.path.basename(path)
+    def decorator(func: Callable):
+        def trace_prefix():
+            return f"*** {file_name}, {func.__name__} ***"
+        setattr(func, "trace_prefix", trace_prefix)
+        return func
     return decorator

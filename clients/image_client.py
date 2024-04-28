@@ -205,7 +205,7 @@ def recognition_postprocessing(scores: np.ndarray) -> str:
     return final_text_list
 
 @trace(__file__)
-def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
+def wait_signal(process_id: int, signal_awaited: str, signal_pipe: Connection) -> None:
     if signal_pipe == None: # Not coordinating multiple processes
         return
     start = time.time()
@@ -215,7 +215,7 @@ def wait_signal(process_id, signal_awaited, signal_pipe: Connection):
         if receiver_id == process_id and signal_type == signal_awaited:
             break
     end = time.time()
-    print(wait_signal.trace_prefix(), "Process %d waited for signal %s for %.5f." % process_id, signal_awaited, end - start)
+    print(wait_signal.trace_prefix(), f"Process {process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
 
 @trace(__file__)
 def send_signal(process_id, signal_to_send, signal_pipe: Connection):
@@ -225,12 +225,13 @@ def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     print(send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
 
 @trace(__file__)
-def main(image_paths, process_id = 0, signal_pipe: Connection = None):
+def main(image_paths, process_id, signal_pipe: Connection = None):
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
-    print(process_id,"PREPROCESSING start")
 
     t0 = time.time()
+    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.%f')}")
+
     client = httpclient.InferenceServerClient(url="localhost:8000")
 
     raw_images = []
@@ -241,7 +242,6 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     for raw_image in raw_images:
         preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
     preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
-    # print("Stacked images dimensions:", preprocessed_images.shape)
 
     t1 = time.time()
     # print("Detection preprocessing succeeded, took %.5f ms." % (t1 - t0))
@@ -253,7 +253,7 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
-    print(process_id,"PREPROCESSING finish, DETECTION INFERENCE start")
+    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
 
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
@@ -264,10 +264,10 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     # print("Text detection succeeded, took %.5f ms." % (t2 - t1))
 
     #### CROPPING (CPU)
-    print(process_id,"DETECTION INFERENCE finish")
+    print(main.trace_prefix(), f"Process {process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.%f')}")
     send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
-    print(process_id,"CROPPING start")
+    print(main.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.%f')}")
     # Depending on parent to schedule the first process, i.e., the process that has waited the longest
     # FIFO policy. Assuming there is no priority among processes
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
@@ -283,7 +283,7 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
         "input.1", cropped_images.shape, datatype="FP32"
     )
     recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
-    print(process_id,"CROPPING finish, RECOGNITION INFERENCE start")
+    print(main.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     recognition_response = client.infer(
         model_name="text_recognition", inputs=[recognition_input]
@@ -292,32 +292,35 @@ def main(image_paths, process_id = 0, signal_pipe: Connection = None):
     # print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
 
     #### POSTPROCESSING (CPU)
-    print(process_id,"RECOGNITION INFERENCE finish")
+    print(main.trace_prefix(), f"Process {process_id}: CROPPING RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.%f')}")
     send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
-    print(process_id,"POSTPROCESSING start")
+    print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.%f')}")
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
-    print(process_id,"POSTPROCESSING finish")
+    print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.%f')}")
 
     # TODO: Collect stats about the time taken for each stage and write to a file
+    # for 3 policies we have in hand: sequantial, non-coordinated subprocesses, non-sharing pipelined
     
+    print(final_text)
+
     return final_text
 
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        print("Not pipeline!")
+        print("Not pipelined!")
         image_paths = [
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG",
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG"
         ]
+        process_id = 0
     else:
-        image_paths = sys.argv[1:]
+        process_id = sys.argv[1]
+        image_paths = sys.argv[2:]
         print("Pipeline batch size: "+str(len(image_paths))+"!")
 
-    final_text = main(image_paths)
-
-    print(final_text)
+    final_text = main(image_paths, process_id)
     
     

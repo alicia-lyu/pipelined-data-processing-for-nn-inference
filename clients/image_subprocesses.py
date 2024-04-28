@@ -6,17 +6,25 @@ import subprocess
 import argparse
 from utils import trace
 from typing import Callable, List
+from image_client import main as client
 
 CLIENT = "image_client.py"
 IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
 
 @trace(__file__)
 def run_subprocess(image_paths: List[str], process_id: int) -> None:
-    subprocess.run(["python", CLIENT] + image_paths)
+    subprocess.run(["python", CLIENT, str(process_id)] + image_paths )
+
+def naive_sequential(image_paths: List[str], process_id: int) -> None:
+    client(image_paths, process_id)
+    # TODO: Plug this to batch arrival to enable a sequential system
+    # when target is naive_sequential, batch for loop will be blocked
 
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int, 
                   target: Callable) -> int:
+    # TODO: Tune min_interval and max_interval so that the next reqeust arrive when the last is not finished. 
+    # The default values doesn't stress CPU or GPU at all.
     
     image_paths = read_images_from_folder(IMAGE_FOLDER) 
 
