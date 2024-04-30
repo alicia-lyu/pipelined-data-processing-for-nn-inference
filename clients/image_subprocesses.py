@@ -1,4 +1,3 @@
-import os
 import subprocess
 from utils import trace, batch_arrival, get_batch_args, read_images_from_folder, IMAGE_FOLDER
 from typing import List

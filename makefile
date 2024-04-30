@@ -4,9 +4,10 @@ OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
-MIN_INTERVAL := 1
-MAX_INTERVAL := 2
+MIN_INTERVAL := 0.5
+MAX_INTERVAL := 1
 BATCH_SIZE := 2
+TIMEOUT := 10
 
 $(OPEN_CV):
 	wget https://www.dropbox.com/s/r2ingd0l3zt8hxs/frozen_east_text_detection.tar.gz
@@ -51,10 +52,10 @@ test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
 
 test-image-subprocesses: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
 
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_pipeline.py
+	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
 
 test-audio: triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py

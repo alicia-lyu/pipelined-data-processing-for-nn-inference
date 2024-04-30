@@ -253,7 +253,7 @@ def main(image_paths, process_id, signal_pipe: Connection = None):
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
-    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
 
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
