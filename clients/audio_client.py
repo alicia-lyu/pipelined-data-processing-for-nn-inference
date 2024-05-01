@@ -57,17 +57,19 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-    preprocessed_audios = []
-    for path in audio_paths:
-        preprocessed_audios.append(audio_preprocess(path, processor))
+    # preprocessed_audios = []
+    # for path in audio_paths:
+    #     preprocessed_audios.append(audio_preprocess(path, processor))
+
+    preprocessed_audio = audio_preprocess(audio_paths[0], processor)
 
     t2 = time.time()
     print(f"t2: {t2}")
 
     infer_input = httpclient.InferInput(
-        "input", preprocessed_audios[0].shape, datatype="FP32" 
+        "input", preprocessed_audio.shape, datatype="FP32" 
     )
-    infer_input.set_data_from_numpy(preprocessed_audios[0].numpy())
+    infer_input.set_data_from_numpy(preprocessed_audio.numpy())
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
