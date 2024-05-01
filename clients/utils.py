@@ -55,6 +55,7 @@ def get_batch_args() -> argparse.Namespace:
     return args
 
 IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
+AUDIO_FOLDER = "../../datasets/audio_data/mp3_16_data_2"
 
 @trace(__file__)
 def read_images_from_folder(root_folder: str) -> List[str]:
@@ -69,3 +70,14 @@ def read_images_from_folder(root_folder: str) -> List[str]:
     print(read_images_from_folder.trace_prefix(), f"Found {len(image_paths)} images.")
 
     return image_paths
+
+def read_audios_from_folder(root_folder: str) -> List[str]:
+    audio_paths = []
+
+    for root, dirs, files in os.walk(root_folder):
+        for file in files:
+            if file.lower().endswith(".mp3"):
+                audio_path = os.path.join(root, file)
+                audio_paths.append(audio_path)
+
+    return audio_paths

@@ -49,23 +49,16 @@ def audio_preprocess(audio_paths, processor: Wav2Vec2Processor):
         audios.append(input_values)
 
     max_cols = max(tensor[0].size(0) for tensor in audios)
-    print(f"max cols: {max_cols}")
   
     # Padding to make sizes compatible
     padded_data = [torch.nn.functional.pad(tensor, (0, max_cols - tensor.size(-1))) for tensor in audios]
-    print(padded_data)
 
     reduced_dim = []
     for tensor in padded_data:
         reduced_dim.append(tensor[0])
 
-    print(reduced_dim)
-
     # Stack padded tensors
     stacked_data = torch.stack(reduced_dim, dim=0)
-    print(stacked_data)
-    print(stacked_data.shape)
-
     return stacked_data
 
 def audio_postprocess(results, processor: Wav2Vec2Processor):
@@ -76,14 +69,13 @@ def audio_postprocess(results, processor: Wav2Vec2Processor):
     return transcriptions
 
 def main(audio_paths, process_id, signal_pipe: Connection = None):
-    print(audio_paths)
+    
     t1 = time.time()
     print(f"t1: {t1}")
+
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
     preprocessed_audios = audio_preprocess(audio_paths, processor)
-    print(preprocessed_audios)
-    print(len(preprocessed_audios))
     t2 = time.time()
     print(f"t2: {t2}")
 
@@ -95,7 +87,6 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     ]
     infer_inputs[0].set_data_from_numpy(preprocessed_audios.numpy())
 
-    
     t3 = time.time()
     print(f"t3: {t3}")
     # query server
@@ -104,12 +95,13 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     t4 = time.time()
     print(f"t4: {t4}")
 
-    transcription = audio_postprocess(results, processor)
+    transcriptions = audio_postprocess(results, processor)
 
     t5 = time.time()
     print(f"t5: {t5}")
 
-    print(transcription)
+    for t in transcriptions:
+        print(t)
 
 if __name__ == "__main__":
 

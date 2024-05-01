@@ -62,3 +62,6 @@ test-image-pipeline: $(IMAGE_CLIENT1) triton-server
 
 test-audio: triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
+
+test-audio-subprocesses: $(IMAGE_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
