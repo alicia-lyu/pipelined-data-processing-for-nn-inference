@@ -60,15 +60,14 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     preprocessed_audios = []
     for path in audio_paths:
         preprocessed_audios.append(audio_preprocess(path, processor))
-    preprocessed_audios = torch.tensor(preprocessed_audios)
 
     t2 = time.time()
     print(f"t2: {t2}")
 
     infer_input = httpclient.InferInput(
-        "input", preprocessed_audios.shape, datatype="FP32" 
+        "input", preprocessed_audios[0].shape, datatype="FP32" 
     )
-    infer_input.set_data_from_numpy(preprocessed_audios.numpy())
+    infer_input.set_data_from_numpy(preprocessed_audios[0].numpy())
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
