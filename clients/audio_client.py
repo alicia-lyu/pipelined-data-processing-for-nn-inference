@@ -40,11 +40,24 @@ def send_signal(process_id, signal_to_send, signal_pipe: Connection):
         return
     signal_pipe.send((process_id, signal_to_send))
 
-def audio_preprocess(audio_path, processor: Wav2Vec2Processor):
-    audio_input, sample_rate = sf.read(audio_path, dtype='float32')
-    # pad input values and return pt tensor
-    input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
-    return input_values
+def audio_preprocess(audio_paths, processor: Wav2Vec2Processor):
+
+    audios = []
+    for path in audio_paths:
+        audio_input, sample_rate = sf.read(path, dtype='float32')
+        input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+        audios.append(input_values)
+
+    # maximum number of rows among the tensors
+    max_rows = max(tensor.size(0) for tensor in audios)
+  
+    # Padding to make sizes compatible
+    padded_data = [torch.nn.functional.pad(tensor, (0, 0, 0, max_rows - tensor.size(0))) for tensor in audios]
+  
+    # Stack padded tensors
+    stacked_data = torch.stack(padded_data, dim=0)
+    
+    return stacked_data
 
 def audio_postprocess(results, processor: Wav2Vec2Processor):
     predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
@@ -57,11 +70,13 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-    preprocessed_audios = []
-    for path in audio_paths:
-        preprocessed_audios.append(audio_preprocess(path, processor))
-    preprocessed_audios = torch.stack(preprocessed_audios)
+    # preprocessed_audios = []
+    # for path in audio_paths:
+    #     preprocessed_audios.append(audio_preprocess(path, processor))
+    # preprocessed_audios = torch.stack(preprocessed_audios)
     # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
+
+    preprocessed_audios = audio_preprocess(audio_paths, processor)
     print(preprocessed_audios)
     print(len(preprocessed_audios))
     t2 = time.time()
