@@ -9,14 +9,12 @@ CLIENT = "image_client.py"
 # Maintain a list of all subprocesses?
 
 @trace(__file__)
-def run_subprocess(image_paths: List[str], process_id: int) -> None:
-    subprocess.run(["python", CLIENT, str(process_id)] + image_paths )
+def run_subprocess(log_dir_name:str,image_paths: List[str], process_id: int) -> None:
+    subprocess.run(["python", CLIENT, log_dir_name, str(process_id)] + image_paths )
 
 @trace(__file__)
-def naive_sequential(image_paths: List[str], process_id: int) -> None:
-    client(image_paths, process_id)
-    # TODO: Plug this to batch arrival to enable a sequential system
-    # when target is naive_sequential, for loop in `batch_arrival` will be blocked
+def naive_sequential(log_dir_name:str,image_paths: List[str], process_id: int) -> None:
+    client(log_dir_name,image_paths, process_id)
 
 if __name__ == "__main__":
 
@@ -24,6 +22,9 @@ if __name__ == "__main__":
 
     image_paths = read_images_from_folder(IMAGE_FOLDER)
 
-    batch_arrival(args.min, args.max, args.batch_size, image_paths, run_subprocess)
+    if args.type == "non-coordinate-batch":
+        batch_arrival(args.min, args.max, args.batch_size, args.type, image_paths, run_subprocess)
+    elif args.type == "naive-sequential":
+        batch_arrival(args.min, args.max, args.batch_size, args.type, image_paths, naive_sequential)
 
     # TODO: call subprocess.return_code() or some other API to get the response time stamp?

@@ -5,6 +5,7 @@ triton-tutorial-part5/
 *.onnx
 __pycache__
 /intermediates/*
+/log_image/*
 *.swp
 *~
 *.png

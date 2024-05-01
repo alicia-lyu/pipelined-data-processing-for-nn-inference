@@ -81,9 +81,9 @@ def schedule(parent_pipe: Connection, timeout_in_seconds:float,
             policy_func(parent_pipe, hashmap_stage, hashmap_state, cpu_using, grant_cpu_func)
 
 @trace(__file__)
-def create_client(image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
+def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
     child_pipe.send((process_id, Message.CREATE_PROCESS))
-    p = Process(target=client, args=(image_paths, process_id, child_pipe))
+    p = Process(target=client, args=(log_dir_name,image_paths, process_id, child_pipe))
     p.daemon = True
     p.start()
 
@@ -96,9 +96,9 @@ if __name__ == "__main__":
 
     # Non-blocking (run at the same time with the scheduler): images arrive in batch
     batch_arrival_process = Process(target=batch_arrival, \
-                                args=(args.min, args.max, args.batch_size,stop_flag, \
+                                args=(args.min, args.max, args.batch_size,args.type, \
                                     read_images_from_folder(IMAGE_FOLDER), \
-                                    lambda batch, id: create_client(batch, id, child_pipe)))
+                                    lambda log_dir_name,batch, id: create_client(log_dir_name,batch, id, child_pipe),stop_flag))
     batch_arrival_process.start()
 
     schedule(parent_pipe,args.timeout, grant_cpu, relinquish_cpu, non_sharing_pipeline)

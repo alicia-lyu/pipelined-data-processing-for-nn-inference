@@ -15,17 +15,20 @@ def trace(path: str):
     return decorator
 
 @trace(__file__)
-def batch_arrival(min_interval: int, max_interval: int, batch_size: int, stop_flag:Event,
-                  data_paths: List[str], create_client_func: Callable) -> int:
-
+def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
+                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None) -> int:
+    start_time = time.time()
+    log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
+    os.makedirs(log_path, exist_ok=True)
     for i in range(0, len(data_paths), batch_size):
         batch = data_paths[i: i + batch_size]
         client_id = i // batch_size
-        if stop_flag.is_set():
-            print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
-            return client_id
+        if stop_flag!=None:
+            if stop_flag.is_set():
+                print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
+                return client_id
         # TODO: request arrival time
-        create_client_func(batch, client_id)
+        create_client_func(log_path,batch, client_id)
         # TODO: response time for naive sequential
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval)
@@ -43,6 +46,7 @@ def get_batch_args() -> argparse.Namespace:
     parser.add_argument("--max", type=float, help="Maximum data arrival interval")
     parser.add_argument("--batch_size", type=int, help="Batch size")
     parser.add_argument("--timeout", type=float, help="Scheduler timeout threhold")
+    parser.add_argument("--type", type=str,default="pipeline", help="System type, naive-sequential/non-coordinate-batch/pipeline")
 
     args = parser.parse_args()
 

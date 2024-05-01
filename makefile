@@ -51,11 +51,14 @@ triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
 
-test-image-subprocesses: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
+test-image-non-coordinated-batch: $(IMAGE_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+
+test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
 
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
+	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
 
 test-audio: triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
