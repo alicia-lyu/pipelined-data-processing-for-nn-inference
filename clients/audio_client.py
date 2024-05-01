@@ -48,12 +48,13 @@ def audio_preprocess(audio_paths, processor: Wav2Vec2Processor):
         input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
         audios.append(input_values)
 
-    # maximum number of rows among the tensors
-    max_rows = max(tensor.size(0) for tensor in audios)
+    max_cols = max(tensor[0].size(0) for tensor in audios)
+    print(f"max cols: {max_cols}")
   
     # Padding to make sizes compatible
-    padded_data = [torch.nn.functional.pad(tensor, (0, 0, 0, max_rows - tensor.size(0))) for tensor in audios]
-  
+    padded_data = [torch.nn.functional.pad(tensor, (0, max_cols - tensor.size(-1))) for tensor in audios]
+    print(padded_data)
+
     # Stack padded tensors
     stacked_data = torch.stack(padded_data, dim=0)
     
