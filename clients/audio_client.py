@@ -60,7 +60,7 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     preprocessed_audios = []
     for path in audio_paths:
         preprocessed_audios.append(audio_preprocess(path, processor))
-    preprocessed_audios = np.stack(preprocessed_audios, axis=0)
+    preprocessed_audios = torch.tensor(preprocessed_audios)
 
     t2 = time.time()
     print(f"t2: {t2}")
