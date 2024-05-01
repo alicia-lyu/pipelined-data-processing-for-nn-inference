@@ -6,6 +6,8 @@ from utils import trace, batch_arrival, get_batch_args, read_images_from_folder,
 from policies import non_sharing_pipeline
 import select
 
+CPU_TASKS_CAP = 10 # LATER: Tune this variable
+
 # grant CPU to a child process and update its stage and state accordingly
 @trace(__file__)
 def grant_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_state: Dict[int, CPUState]) -> None:
@@ -45,10 +47,14 @@ def schedule(parent_pipe: Connection, timeout_in_seconds:float,
     hashmap_stage: Dict[int, Stage] = {}
     hashmap_state: Dict[int, CPUState] = {}
     cpu_using: bool = False # Only one process occupies CPU to ensure meeting latency SLO
+    # LATER: I think to allow multiple processes to work together but cap the number of processes working simultaneously
+    # We can keep all code here, simply change the cpu_using from a bool to a int, if it is smaller than CPU_TASKS_CAP,
+    # we can grant resource to a new task
     
     # Act on received signal from a child
     while True: 
         # Wait for data on the parent_pipe or until the timeout expires
+        # LATER: Only wait if cpu reaches cap
         ready = select.select([parent_pipe], [], [], timeout_in_seconds)
         if ready[0]:
             # Process the received data
