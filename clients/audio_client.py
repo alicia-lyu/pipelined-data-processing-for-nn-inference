@@ -105,16 +105,19 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
 
 if __name__ == "__main__":
 
+    audio_paths = [
+        "../../datasets/audio_data/mp3_16_data_2/common_voice_en_100229_16kHz.mp3",
+        "../../datasets/audio_data/mp3_16_data_2/common_voice_en_137150_16kHz.mp3"
+    ]
+
     if len(sys.argv) < 2:
         print("Not pipelined!")
-        audio_paths = [
-            "../../datasets/audio_data/mp3_16_data_2/common_voice_en_100229_16kHz.mp3",
-            "../../datasets/audio_data/mp3_16_data_2/common_voice_en_137150_16kHz.mp3"
-        ]
         process_id = 0
     else:
         process_id = sys.argv[1]
+        print(f"pid:{process_id}")
         audio_paths = sys.argv[2:]
+        print(audio_paths)
         print("Pipeline batch size: "+str(len(audio_paths))+"!")
 
     final_text = main(audio_paths, process_id)
