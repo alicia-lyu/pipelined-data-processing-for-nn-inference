@@ -3,6 +3,7 @@ import os
 import time
 import random
 import argparse
+from multiprocessing import Event
 
 def trace(path: str):
     file_name = os.path.basename(path)
@@ -14,13 +15,18 @@ def trace(path: str):
     return decorator
 
 @trace(__file__)
-def batch_arrival(min_interval: int, max_interval: int, batch_size: int, 
+def batch_arrival(min_interval: int, max_interval: int, batch_size: int, stop_flag:Event,
                   data_paths: List[str], create_client_func: Callable) -> int:
 
     for i in range(0, len(data_paths), batch_size):
         batch = data_paths[i: i + batch_size]
         client_id = i // batch_size
+        if stop_flag.is_set():
+            print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
+            return client_id
+        # TODO: request arrival time
         create_client_func(batch, client_id)
+        # TODO: response time for naive sequential
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval)
         time.sleep(interval)
@@ -31,11 +37,12 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int,
 
 @trace(__file__)
 def get_batch_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="set pipeline data arrival interval")
+    parser = argparse.ArgumentParser(description="Set pipeline data arrival interval")
 
-    parser.add_argument("--min", type=int, default=1, help="Minimum data arrival interval")
-    parser.add_argument("--max", type=int, default=5, help="Maximum data arrival interval")
-    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
+    parser.add_argument("--min", type=float, help="Minimum data arrival interval")
+    parser.add_argument("--max", type=float, help="Maximum data arrival interval")
+    parser.add_argument("--batch_size", type=int, help="Batch size")
+    parser.add_argument("--timeout", type=float, help="Scheduler timeout threhold")
 
     args = parser.parse_args()
 

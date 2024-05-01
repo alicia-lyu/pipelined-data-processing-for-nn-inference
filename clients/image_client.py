@@ -253,7 +253,7 @@ def main(image_paths, process_id, signal_pipe: Connection = None):
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
-    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
 
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
@@ -301,6 +301,7 @@ def main(image_paths, process_id, signal_pipe: Connection = None):
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.%f')}")
 
     # TODO: Collect stats about the time taken for each stage and write to a file
+    # Hi Ruijia! I think right now we can just collect the time taken from arrival to finish (i.e. latency)
     # for 3 policies we have in hand: sequential, non-coordinated subprocesses, non-sharing pipelined
     
     print(final_text)
