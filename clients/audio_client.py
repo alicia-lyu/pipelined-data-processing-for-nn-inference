@@ -53,25 +53,20 @@ def audio_postprocess(results, processor: Wav2Vec2Processor):
     return transcription
 
 def main(audio_paths, process_id, signal_pipe: Connection = None):
-
+    print(audio_paths)
     t1 = time.time()
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
     librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
-    # load audio - to be updated
-    # audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"], dtype='float32')
-    # audio_input, sample_rate = sf.read(audio_paths[0], dtype='float32')
-    # pad input values and return pt tensor
-    # preprocessed_audio = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
-
 
     # preprocessed_audios = []
     # for path in audio_paths:
     #     preprocessed_audios.append(audio_preprocess(path, processor))
 
     preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
-
+    # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
+    print(preprocessed_audio)
     t2 = time.time()
     print(f"t2: {t2}")
 
