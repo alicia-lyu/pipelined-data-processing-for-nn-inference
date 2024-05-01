@@ -60,7 +60,7 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     preprocessed_audios = []
     for path in audio_paths:
         preprocessed_audios.append(audio_preprocess(path, processor))
-    preprocessed_audios = torch.tensor(preprocessed_audios)
+    preprocessed_audios = torch.stack(preprocessed_audios)
     # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
     print(preprocessed_audios)
     print(len(preprocessed_audios))
