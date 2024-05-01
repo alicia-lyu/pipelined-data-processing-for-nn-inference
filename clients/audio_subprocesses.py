@@ -1,7 +1,7 @@
 import subprocess
 from utils import trace, batch_arrival_audio, get_batch_args, read_audios_from_folder, AUDIO_FOLDER
 from typing import List
-from image_client import main as client
+from audio_client import main as client
 
 CLIENT = "audio_client.py"
 
