@@ -87,7 +87,7 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     t3 = time.time()
     print(f"t3: {t3}")
     # query server
-    results = client.infer(model_name="speech_recognition", inputs=[infer_inputs])
+    results = client.infer(model_name="speech_recognition", inputs=infer_inputs)
 
     t4 = time.time()
     print(f"t4: {t4}")
