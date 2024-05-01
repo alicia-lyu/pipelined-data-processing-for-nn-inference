@@ -2,7 +2,6 @@ import tritonclient.http as httpclient
 import numpy as np
 import soundfile as sf
 from transformers import Wav2Vec2Processor
-from datasets import load_dataset
 import torch
 import sys
 from multiprocessing.connection import Connection
@@ -73,10 +72,6 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
         infer_input.set_data_from_numpy(a.numpy())
         inputs.append(infer_input)
 
-    # inputs = [
-    #     httpclient.InferInput("input", input_values.shape, "FP32")
-    # ]
-    # inputs[0].set_data_from_numpy(input_values.numpy())
     t3 = time.time()
     print(f"t3: {t3}")
     # query server
@@ -85,9 +80,6 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     t4 = time.time()
     print(f"t4: {t4}")
 
-    # process response / transcribe
-    # predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
-    # transcription = processor.decode(predicted_ids[0])
     transcription = audio_postprocess(results, processor)
 
     t5 = time.time()
@@ -100,11 +92,8 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Not pipelined!")
         audio_paths = [
-            "../archive/samples/common_voice_en_250.mp3",
-            "../archive/samples/common_voice_en_57.mp3",
-            "../archive/samples/common_voice_en_537.mp3",
-            "../archive/samples/common_voice_en_1043.mp3",
-            "../archive/samples/common_voice_en_1047.mp3"
+            # "../../datasets/audio_data/",
+            # "../../datasets/audio_data/"
         ]
         process_id = 0
     else:
