@@ -278,6 +278,24 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     cropped_images = np.array(cropped_images, dtype=np.single)
 
     if cropped_images.shape[0] == 0:
+        send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+        end_time = time.time()
+        with open(log_dir_name+str(process_id)+".txt","w") as f:
+            f.write(str(end_time-t0)+" process length\n")
+            f.write(str(t2-t1)+" preprocessing length\n")
+            f.write(str(t3-t2)+" detection inference length\n")
+            f.write("\n")
+            f.write(str(t1-t0)+" waiting for preprocessing time\n")
+            f.write(str(t4-t3)+" waiting for cropping time\n")
+            f.write("\n")
+            f.write(str(t0)+" process created\n")
+            f.write(str(t1)+" preprocessing started\n")
+            f.write(str(t2)+" preprocessing ended, detection inference started\n")
+            f.write(str(t3)+" detection inference ended\n")
+            f.write(str(t4)+" cropping started\n")
+            f.write(str(end_time)+" cropping failed, the process finished\n")
+            
+            f.close()
         return
     # print("Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
 
