@@ -57,25 +57,26 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-    audios = []
+    preprocessed_audios = []
     for path in audio_paths:
-        audios.append(audio_preprocess(path, processor))
+        preprocessed_audios.append(audio_preprocess(path, processor))
+    preprocessed_audios = np.stack(preprocessed_audios, axis=0)
 
     t2 = time.time()
     print(f"t2: {t2}")
 
+    infer_input = httpclient.InferInput(
+        "input", preprocessed_audios.shape, datatype="FP32" 
+    )
+    infer_input.set_data_from_numpy(preprocessed_audios.numpy())
+
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
-    inputs = []
-    for a in audios:
-        infer_input = httpclient.InferInput("input", a.shape, "FP32")
-        infer_input.set_data_from_numpy(a.numpy())
-        inputs.append(infer_input)
-
+   
     t3 = time.time()
     print(f"t3: {t3}")
     # query server
-    results = client.infer(model_name="speech_recognition", inputs=inputs)
+    results = client.infer(model_name="speech_recognition", inputs=[infer_input])
 
     t4 = time.time()
     print(f"t4: {t4}")
