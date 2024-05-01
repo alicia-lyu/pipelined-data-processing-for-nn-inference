@@ -4,6 +4,7 @@ OPEN_CV=$(MODEL_REPO)/text_detection/1/model.onnx
 RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
+AUDIO_CLIENT1=$(BASEDIR)/clients/audio_client.py
 MIN_INTERVAL := 0.1
 MAX_INTERVAL := 0.2
 BATCH_SIZE := 2
@@ -60,8 +61,11 @@ test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
 
-test-audio: triton-server
+test-audio: $(AUDIO_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
 
-test-audio-subprocesses: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT)
+test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+
+test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"

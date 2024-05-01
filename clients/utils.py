@@ -81,3 +81,27 @@ def read_audios_from_folder(root_folder: str) -> List[str]:
                 audio_paths.append(audio_path)
 
     return audio_paths
+
+@trace(__file__)
+def batch_arrival_audio(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
+                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None) -> int:
+    start_time = time.time()
+    log_path = "../log_audio/"+system_type+"_"+str(start_time)+"/"
+    os.makedirs(log_path, exist_ok=True)
+    for i in range(0, len(data_paths), batch_size):
+        batch = data_paths[i: i + batch_size]
+        client_id = i // batch_size
+        if stop_flag!=None:
+            if stop_flag.is_set():
+                print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
+                return client_id
+        # TODO: request arrival time
+        create_client_func(log_path,batch, client_id)
+        # TODO: response time for naive sequential
+        print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} audios.")
+        interval = random.uniform(min_interval, max_interval)
+        time.sleep(interval)
+    
+    client_num = len(data_paths) // batch_size
+    print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
+    return client_num
