@@ -7,7 +7,6 @@ import sys
 from multiprocessing.connection import Connection
 from enum import Enum
 import time
-from datasets import load_dataset
 
 class Message(Enum):
     CPU_AVAILABLE = "CPU_AVAILABLE"
@@ -58,16 +57,13 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-    librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
-
-    # preprocessed_audios = []
-    # for path in audio_paths:
-    #     preprocessed_audios.append(audio_preprocess(path, processor))
-
-    # preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
-    preprocessed_audio = audio_preprocess(audio_paths[0], processor)
-    print(preprocessed_audio)
-    print(len(preprocessed_audio))
+    preprocessed_audios = []
+    for path in audio_paths:
+        preprocessed_audios.append(audio_preprocess(path, processor))
+    preprocessed_audios = torch.tensor(preprocessed_audios)
+    # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
+    print(preprocessed_audios)
+    print(len(preprocessed_audios))
     t2 = time.time()
     print(f"t2: {t2}")
 
@@ -76,9 +72,9 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     client = httpclient.InferenceServerClient(url="localhost:8000")
    
     infer_inputs = [
-        httpclient.InferInput("input", preprocessed_audio.shape, datatype="FP32")
+        httpclient.InferInput("input", preprocessed_audios.shape, datatype="FP32")
     ]
-    infer_inputs[0].set_data_from_numpy(preprocessed_audio.numpy())
+    infer_inputs[0].set_data_from_numpy(preprocessed_audios.numpy())
 
     
     t3 = time.time()
