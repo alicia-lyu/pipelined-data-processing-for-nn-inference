@@ -68,7 +68,7 @@ def audio_postprocess(results, processor: Wav2Vec2Processor):
         transcriptions.append(processor.decode(prediction))
     return transcriptions
 
-def main(audio_paths, process_id, signal_pipe: Connection = None):
+def main(log_dir_name:str, audio_paths, process_id, signal_pipe: Connection = None):
     
     t1 = time.time()
     print(f"t1: {t1}")
@@ -114,10 +114,9 @@ if __name__ == "__main__":
         print("Not pipelined!")
         process_id = 0
     else:
-        process_id = sys.argv[1]
-        print(f"pid:{process_id}")
-        audio_paths = sys.argv[2:]
-        print(audio_paths)
+        log_path = sys.argv[1]
+        process_id = sys.argv[2]
+        audio_paths = sys.argv[3:]
         print("Pipeline batch size: "+str(len(audio_paths))+"!")
 
-    final_text = main(audio_paths, process_id)
+    final_text = main(log_path, audio_paths, process_id)
