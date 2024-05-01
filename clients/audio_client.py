@@ -73,13 +73,15 @@ def main(log_dir_name:str, audio_paths, process_id, signal_pipe: Connection = No
     t1 = time.time()
     # print(f"t1: {t1}")
 
-    # preprocessing takes some time, rest is fast
+    # --- wait for CPU ---
 
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
     preprocessed_audios = audio_preprocess(audio_paths, processor)
     t2 = time.time()
     # print(f"t2: {t2}")
+
+    # --- relinquish CPU ---
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
@@ -105,6 +107,8 @@ def main(log_dir_name:str, audio_paths, process_id, signal_pipe: Connection = No
 
     for t in transcriptions:
         print(t)
+
+    return transcriptions
 
 if __name__ == "__main__":
 
