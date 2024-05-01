@@ -60,32 +60,34 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
 
     librispeech_samples_ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
     # load audio - to be updated
-    # audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"], dtype='float32')
+    audio_input, sample_rate = sf.read(librispeech_samples_ds[0]["file"], dtype='float32')
     # pad input values and return pt tensor
-    # preprocessed_audio = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+    preprocessed_audio = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
 
 
     # preprocessed_audios = []
     # for path in audio_paths:
     #     preprocessed_audios.append(audio_preprocess(path, processor))
 
-    preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
+    # preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
 
     t2 = time.time()
     print(f"t2: {t2}")
 
-    infer_input = httpclient.InferInput(
-        "input", preprocessed_audio.shape, datatype="FP32" 
-    )
-    infer_input.set_data_from_numpy(preprocessed_audio.numpy())
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
    
+    infer_inputs = [
+        httpclient.InferInput("input", preprocessed_audio.shape, datatype="FP32")
+    ]
+    infer_inputs[0].set_data_from_numpy(preprocessed_audio.numpy())
+
+    
     t3 = time.time()
     print(f"t3: {t3}")
     # query server
-    results = client.infer(model_name="speech_recognition", inputs=[infer_input])
+    results = client.infer(model_name="speech_recognition", inputs=[infer_inputs])
 
     t4 = time.time()
     print(f"t4: {t4}")
