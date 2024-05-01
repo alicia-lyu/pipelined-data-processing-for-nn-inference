@@ -1,14 +1,14 @@
 import os
 import subprocess
-from utils import trace, batch_arrival, get_batch_args, read_images_from_folder, IMAGE_FOLDER
+from utils import trace, batch_arrival, get_batch_args, read_audios_from_folder, AUDIO_FOLDER
 from typing import List
 from image_client import main as client
 
-CLIENT = "image_client.py"
+CLIENT = "audio_client.py"
 
 @trace(__file__)
-def run_subprocess(image_paths: List[str], process_id: int) -> None:
-    subprocess.run(["python", CLIENT, str(process_id)] + image_paths )
+def run_subprocess(audio_paths: List[str], process_id: int) -> None:
+    subprocess.run(["python", CLIENT, str(process_id)] + audio_paths )
 
 @trace(__file__)
 def naive_sequential(image_paths: List[str], process_id: int) -> None:
@@ -20,6 +20,6 @@ if __name__ == "__main__":
 
     args = get_batch_args()
 
-    image_paths = read_images_from_folder(IMAGE_FOLDER)
+    audio_paths = read_audios_from_folder(AUDIO_FOLDER)
 
-    batch_arrival(args.min, args.max, args.batch_size, image_paths, run_subprocess)
+    batch_arrival(args.min, args.max, args.batch_size, audio_paths, run_subprocess)
