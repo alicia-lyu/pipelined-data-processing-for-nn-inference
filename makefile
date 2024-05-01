@@ -5,8 +5,8 @@ RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
 AUDIO_CLIENT1=$(BASEDIR)/clients/audio_client.py
-MIN_INTERVAL := 0.5
-MAX_INTERVAL := 1
+MIN_INTERVAL := 0.1
+MAX_INTERVAL := 0.2
 BATCH_SIZE := 2
 TIMEOUT := 10
 
