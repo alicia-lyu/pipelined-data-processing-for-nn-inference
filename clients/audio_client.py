@@ -92,8 +92,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Not pipelined!")
         audio_paths = [
-            # "../../datasets/audio_data/",
-            # "../../datasets/audio_data/"
+            "../../datasets/audio_data/wav16_data_1/common_voice_en_12192.wav",
+            "../../datasets/audio_data/wav16_data_1/common_voice_en_12194.wav",
+            "../../datasets/audio_data/wav16_data_1/common_voice_en_12195.wav"
         ]
         process_id = 0
     else:
