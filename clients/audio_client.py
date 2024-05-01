@@ -56,8 +56,10 @@ def audio_preprocess(audio_paths, processor: Wav2Vec2Processor):
     print(padded_data)
 
     # Stack padded tensors
-    stacked_data = torch.stack(padded_data, dim=0)
-    
+    stacked_data = torch.stack((tensor[0] for tensor in padded_data), dim=0)
+    print(stacked_data)
+    print(stacked_data.shape)
+
     return stacked_data
 
 def audio_postprocess(results, processor: Wav2Vec2Processor):
