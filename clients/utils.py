@@ -24,7 +24,9 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, stop_fl
         if stop_flag.is_set():
             print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
             return client_id
+        # TODO: request arrival time
         create_client_func(batch, client_id)
+        # TODO: response time for naive sequential
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval)
         time.sleep(interval)

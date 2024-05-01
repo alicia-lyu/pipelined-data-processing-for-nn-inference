@@ -301,6 +301,7 @@ def main(image_paths, process_id, signal_pipe: Connection = None):
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.%f')}")
 
     # TODO: Collect stats about the time taken for each stage and write to a file
+    # Hi Ruijia! I think right now we can just collect the time taken from arrival to finish (i.e. latency)
     # for 3 policies we have in hand: sequential, non-coordinated subprocesses, non-sharing pipelined
     
     print(final_text)

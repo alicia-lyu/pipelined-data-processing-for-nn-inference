@@ -27,6 +27,7 @@ def relinquish_cpu(process_id: int, hashmap_stage: Dict[int, Stage], hashmap_sta
     if hashmap_stage[process_id] == Stage.POSTPROCESSING: # Finished all stages
         del hashmap_stage[process_id]
         del hashmap_state[process_id]
+        # TODO: response time for pipeline
     elif hashmap_stage[process_id] == Stage.PREPROCESSING:
         hashmap_stage[process_id] = Stage.DETECTION_INFERENCE
         hashmap_state[process_id] = CPUState.GPU
@@ -56,8 +57,6 @@ def schedule(parent_pipe: Connection, timeout_in_seconds:float,
             # Handle timeout
             print("No data received within the timeout period.")
             break  # Break out of the loop
-        # TODO: Add a timeout to break the loop when there is no client in the hashmap and no signal received for a while √
-        # client_id, signal_type = parent_pipe.recv()
         client_id = int(client_id)
         print(schedule.trace_prefix(), f"Received signal {signal_type} from {client_id}")#, hashmap_stage, hashmap_state)
         # A child client is first created (in create_client)
@@ -86,8 +85,6 @@ if __name__ == "__main__":
     stop_flag = Event() # stop the batch arrival when the scheduler stops
 
     args = get_batch_args()
-    # TODO: Tune min_interval and max_interval so that the next request arrive when the last is not finished. 
-    # The default values doesn't stress CPU or GPU at all.
 
     parent_pipe, child_pipe = Pipe()
 
