@@ -64,9 +64,10 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     # for path in audio_paths:
     #     preprocessed_audios.append(audio_preprocess(path, processor))
 
-    preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
-    # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
+    # preprocessed_audio = audio_preprocess(librispeech_samples_ds[0]["file"], processor)
+    preprocessed_audio = audio_preprocess(audio_paths[1], processor)
     print(preprocessed_audio)
+    print(len(preprocessed_audio))
     t2 = time.time()
     print(f"t2: {t2}")
 
@@ -101,8 +102,7 @@ if __name__ == "__main__":
         print("Not pipelined!")
         audio_paths = [
             "../../datasets/audio_data/wav16_data_1/common_voice_en_12192.wav",
-            "../../datasets/audio_data/wav16_data_1/common_voice_en_12194.wav",
-            "../../datasets/audio_data/wav16_data_1/common_voice_en_12195.wav"
+            "../../datasets/audio_data/mp3_16_data_2/common_voice_en_100229_16kHz.mp3"
         ]
         process_id = 0
     else:
