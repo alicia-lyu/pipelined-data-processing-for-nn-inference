@@ -69,9 +69,11 @@ def audio_preprocess(audio_paths, processor: Wav2Vec2Processor):
     return stacked_data
 
 def audio_postprocess(results, processor: Wav2Vec2Processor):
+    transcriptions = []
     predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
-    transcription = processor.decode(predicted_ids[0])
-    return transcription
+    for prediction in predicted_ids:
+        transcriptions.append(processor.decode(prediction))
+    return transcriptions
 
 def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(audio_paths)
@@ -79,18 +81,11 @@ def main(audio_paths, process_id, signal_pipe: Connection = None):
     print(f"t1: {t1}")
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
-    # preprocessed_audios = []
-    # for path in audio_paths:
-    #     preprocessed_audios.append(audio_preprocess(path, processor))
-    # preprocessed_audios = torch.stack(preprocessed_audios)
-    # preprocessed_audio = audio_preprocess(audio_paths[0], processor)
-
     preprocessed_audios = audio_preprocess(audio_paths, processor)
     print(preprocessed_audios)
     print(len(preprocessed_audios))
     t2 = time.time()
     print(f"t2: {t2}")
-
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
