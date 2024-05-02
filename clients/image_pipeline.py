@@ -1,4 +1,4 @@
-from image_client import main as client, Message, CPUState
+from image_client import TextRecognitionClient, Message, CPUState
 from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
 from typing import Callable, Dict, List
@@ -24,7 +24,7 @@ class Scheduler:
         self.CPU_TASKS_CAP = cpu_tasks_cap # TODO: Tune this variable. I think 2-4 is a good number, since our machine has 2 cores
 
     @trace(__file__)
-    def run(self) -> None:
+    def run(self) -> bool:
         # Act on received signal from a child
         while True:
             # Allocate all available CPUs
@@ -59,6 +59,7 @@ class Scheduler:
                         print(f"Client {process_id} stuck at {child_state}!", file=sys.stderr)
                 print("No data received within the timeout period.")
                 break  # Break out of the loop
+        return True
 
     @trace(__file__)
     def fifo(self) -> int:
@@ -81,7 +82,8 @@ class Scheduler:
 
 @trace(__file__)
 def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
-    p = Process(target=client, args=(log_dir_name,image_paths, process_id, child_pipe, t0))
+    client = TextRecognitionClient(log_dir_name,image_paths, process_id, None, t0)
+    p = Process(target=client.run)
     p.start()
     return p
 
@@ -109,6 +111,7 @@ if __name__ == "__main__":
     batch_arrival_process.start()
 
     scheduler = Scheduler(parent_pipes, args.timeout, Policy.FIFO)
-    scheduler.run()
+    ret = scheduler.run()
 
-    stop_flag.set()
+    if ret is True:
+        batch_arrival_process.terminate()

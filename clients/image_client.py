@@ -1,29 +1,3 @@
-# Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#  * Neither the name of NVIDIA CORPORATION nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import os, cv2
 import numpy as np
 import tritonclient.http as httpclient
@@ -70,9 +44,9 @@ class TextRecognitionClient:
     @trace(__file__)
     def preprocess(self):
         self.t1 = time.time()
-        print(self.preprocess.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         raw_images = []
-        for path in image_paths:
+        for path in self.image_paths:
             raw_images.append(cv2.imread(path))
 
         preprocessed_images = []
@@ -80,7 +54,7 @@ class TextRecognitionClient:
             preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
         preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
         self.t2 = time.time()
-        print(self.preprocess.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
+        print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
         return preprocessed_images
 
     @trace(__file__)
@@ -93,23 +67,27 @@ class TextRecognitionClient:
             model_name="text_detection", inputs=[detection_input]
         )
         self.t3 = time.time()
-        print(self.detect.trace_prefix(), f"Process {process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        print(self.detect.trace_prefix(), f"Process {self.process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
         return detection_response
 
     @trace(__file__)
     def crop(self, detection_response, preprocessed_images):
         self.t4 = time.time()
-        print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
+        print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
 
         # Depending on parent to schedule the first process, i.e., the process that has waited the longest
         # FIFO policy. Assuming there is no priority among processes
         cropped_images = detection_postprocessing(detection_response,preprocessed_images)
         cropped_images = np.array(cropped_images, dtype=np.single)
         if cropped_images.shape[0] == 0:
-            print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}", file=sys.stderr)
+            self.t5 = time.time()
+            self.t6 = time.time()
+            self.t7 = time.time()
+            self.t8 = time.time()
+            print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING returns no image, end early at {time.strftime('%H:%M:%S.')}")
             return
         self.t5 = time.time()
-        print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+        print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
         return cropped_images
 
     @trace(__file__)
@@ -123,20 +101,20 @@ class TextRecognitionClient:
             model_name="text_recognition", inputs=[recognition_input]
         )
         self.t6 = time.time()
-        print(self.recognize.trace_prefix(), f"Process {process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        print(self.recognize.trace_prefix(), f"Process {self.process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
         return recognition_response
 
     @trace(__file__)
     def postprocess(self, recognition_response):
-        print(self.postprocess.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t7 = time.time()
         final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
-        print(self.postprocess.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
+        print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         self.t8 = time.time()
         print(final_text)
         return final_text
     
-    def run(self) -> str:
+    def run(self):
         #### PREPROCESSING (CPU)
         self.wait_signal(Message.ALLOCATE_CPU)
         preprocessed_images = self.preprocess()
@@ -150,6 +128,9 @@ class TextRecognitionClient:
         #### CROPPING (CPU)
         self.wait_signal(Message.ALLOCATE_CPU) 
         cropped_images = self.crop(detection_response, preprocessed_images)
+        if cropped_images is None:
+            self.log()
+            return []
         self.send_signal(Message.RELINQUISH_CPU)
 
         #### RECOGNITION INFERENCE (GPU)
@@ -160,8 +141,7 @@ class TextRecognitionClient:
         final_text = self.postprocess(recognition_response)
         self.send_signal(Message.FINISHED)
 
-        if final_text is not None:
-            self.log()
+        self.log()
 
         return final_text
 
@@ -197,17 +177,17 @@ class TextRecognitionClient:
         self.send_signal(Message.WAITING_FOR_CPU) # tell scheduler that the process is waiting for CPU
         while True:
             receiver_id, signal_type = self.pipe.recv()
-            if receiver_id == process_id and signal_type == signal_awaited:
+            if receiver_id == self.process_id and signal_type == signal_awaited:
                 break
         end = time.time()
-        print(self.wait_signal.trace_prefix(), f"Process {process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
+        print(self.wait_signal.trace_prefix(), f"Process {self.process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
 
     @trace(__file__)
     def send_signal(self, signal_to_send):
         if self.pipe == None: # Not coordinating multiple processes
             return
-        print(self.send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
-        self.pipe.send((process_id, signal_to_send))
+        print(self.send_signal.trace_prefix(), "Process %d sent signal %s." % (self.process_id, signal_to_send))
+        self.pipe.send((self.process_id, signal_to_send))
 
 if __name__ == "__main__":
 
