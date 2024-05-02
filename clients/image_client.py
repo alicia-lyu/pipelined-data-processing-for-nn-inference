@@ -221,19 +221,24 @@ def wait_signal(process_id: int, signal_awaited: str, signal_pipe: Connection) -
 def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     if signal_pipe == None: # Not coordinating multiple processes
         return
-    signal_pipe.send((process_id, signal_to_send))
     print(send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
+    signal_pipe.send((process_id, signal_to_send))
 
 @trace(__file__)
 def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = None):
     t0 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t0)+" process created\n")
+        f.close()
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
 
     t1 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t1)+" preprocessing started\n")
+        f.close()
     print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
 
-    client = httpclient.InferenceServerClient(url="localhost:8000")
 
     raw_images = []
     for path in image_paths:
@@ -244,24 +249,31 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
     preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
 
+    t2 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t2)+" preprocessing ended, detection inference started\n")
+        f.close()
+    # print("Detection preprocessing succeeded, took %.5f ms." % (t2 - t1))
+    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
+    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
 
     #### DETECTION INFERENCE (GPU)
+    client = httpclient.InferenceServerClient(url="localhost:8000")
     detection_input = httpclient.InferInput(
         "input_images:0", preprocessed_images.shape, datatype="FP32" 
     )
     detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
 
-    t2 = time.time()
-    # print("Detection preprocessing succeeded, took %.5f ms." % (t2 - t1))
-    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
-    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
-
+    
     detection_response = client.infer(
         model_name="text_detection", inputs=[detection_input]
     )
     # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
     # This should be fine, as the task here is not compute-intensive
     t3 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t3)+" detection inference ended\n")
+        f.close()
     # print("Text detection succeeded, took %.5f ms." % (t2 - t1))
 
     #### CROPPING (CPU)
@@ -270,62 +282,73 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
     t4 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t4)+" cropping started\n")
+        f.close()
     print(main.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
 
     # Depending on parent to schedule the first process, i.e., the process that has waited the longest
     # FIFO policy. Assuming there is no priority among processes
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
     cropped_images = np.array(cropped_images, dtype=np.single)
-
+    print("cropping!!")
     if cropped_images.shape[0] == 0:
         send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
         end_time = time.time()
+        print(main.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}")
         with open(log_dir_name+str(process_id)+".txt","w") as f:
+            f.write("\n")
             f.write(str(end_time-t0)+" process length\n")
             f.write(str(t2-t1)+" preprocessing length\n")
             f.write(str(t3-t2)+" detection inference length\n")
             f.write("\n")
             f.write(str(t1-t0)+" waiting for preprocessing time\n")
             f.write(str(t4-t3)+" waiting for cropping time\n")
-            f.write("\n")
-            f.write(str(t0)+" process created\n")
-            f.write(str(t1)+" preprocessing started\n")
-            f.write(str(t2)+" preprocessing ended, detection inference started\n")
-            f.write(str(t3)+" detection inference ended\n")
-            f.write(str(t4)+" cropping started\n")
-            f.write(str(end_time)+" cropping failed, the process finished\n")
-            
             f.close()
-        return
-    # print("Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
+        return None
+    print(main.trace_prefix(), f"Process {process_id}: Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
+    
+    t5 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t5)+" cropping ended, recognition inference started\n")
+        f.close()
+
+    print(main.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
 
     #### RECOGNITION INFERENCE (GPU)
     recognition_input = httpclient.InferInput(
         "input.1", cropped_images.shape, datatype="FP32"
     )
     recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
-    t5 = time.time()
-    print(main.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
-    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    
     recognition_response = client.infer(
         model_name="text_recognition", inputs=[recognition_input]
     )
     t6 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t6)+" recognition inference ended\n")
+        f.close()
     # print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
 
     #### POSTPROCESSING (CPU)
-    print(main.trace_prefix(), f"Process {process_id}: CROPPING RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+    print(main.trace_prefix(), f"Process {process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
     send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
     t7 = time.time()
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t7)+" postprrocessing started\n")
+        f.close()
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
     send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
     t8 = time.time()
     print(final_text)
 
-    with open(log_dir_name+str(process_id)+".txt","w") as f:
+    with open(log_dir_name+str(process_id)+".txt","a") as f:
+        f.write(str(t8)+" postprrocessing ended\n")
+        f.write("\n")
         f.write(str(t8-t0)+" process length\n")
         f.write(str(t2-t1)+" preprocessing length\n")
         f.write(str(t3-t2)+" detection inference length\n")
@@ -336,16 +359,6 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         f.write(str(t1-t0)+" waiting for preprocessing time\n")
         f.write(str(t4-t3)+" waiting for cropping time\n")
         f.write(str(t7-t6)+" waiting for postprrocessing time\n")
-        f.write("\n")
-        f.write(str(t0)+" process created\n")
-        f.write(str(t1)+" preprocessing started\n")
-        f.write(str(t2)+" preprocessing ended, detection inference started\n")
-        f.write(str(t3)+" detection inference ended\n")
-        f.write(str(t4)+" cropping started\n")
-        f.write(str(t5)+" cropping ended, recognition inference started\n")
-        f.write(str(t6)+" recognition inference ended\n")
-        f.write(str(t7)+" postprrocessing started\n")
-        f.write(str(t8)+" postprrocessing ended\n")
         f.close()
     
 

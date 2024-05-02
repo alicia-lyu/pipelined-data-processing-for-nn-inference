@@ -21,6 +21,7 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
     log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
     os.makedirs(log_path, exist_ok=True)
     for i in range(0, len(data_paths), batch_size):
+    # for i in range(0, 10, batch_size):
         batch = data_paths[i: i + batch_size]
         client_id = i // batch_size
         if stop_flag!=None:

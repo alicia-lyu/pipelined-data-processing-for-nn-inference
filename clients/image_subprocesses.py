@@ -2,6 +2,7 @@ import subprocess
 from utils import trace, batch_arrival, get_batch_args, read_images_from_folder, IMAGE_FOLDER
 from typing import List
 from image_client import main as client
+from multiprocessing import Process
 
 CLIENT = "image_client.py"
 
@@ -10,7 +11,8 @@ CLIENT = "image_client.py"
 
 @trace(__file__)
 def run_subprocess(log_dir_name:str,image_paths: List[str], process_id: int) -> None:
-    subprocess.run(["python", CLIENT, log_dir_name, str(process_id)] + image_paths )
+    p = Process(target=client, args=(log_dir_name,image_paths, process_id))
+    p.start()
 
 @trace(__file__)
 def naive_sequential(log_dir_name:str,image_paths: List[str], process_id: int) -> None:

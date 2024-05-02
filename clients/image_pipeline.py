@@ -60,7 +60,7 @@ def schedule(parent_pipes: List[Connection],child_pipes: List[Connection],timeou
             for ready_pipe in ready[0]:
                 client_id, signal_type = ready_pipe.recv()
                 client_id = int(client_id)
-                print(schedule.trace_prefix(), f"Received signal {signal_type} from {client_id}")#, hashmap_stage, hashmap_state)
+                print(schedule.trace_prefix(), f"Received signal {signal_type} from {client_id}", "CPU using: "+str(cpu_using))#, hashmap_stage, hashmap_state)
                 # A child client is first created (in create_client)
                 if signal_type == Message.CREATE_PROCESS:
                     hashmap_stage[client_id] = Stage.NOT_START
@@ -74,7 +74,7 @@ def schedule(parent_pipes: List[Connection],child_pipes: List[Connection],timeou
                     hashmap_state[client_id] = CPUState.WAITING_FOR_CPU
 
                 if not cpu_using:
-                    policy_func(parent_pipes, hashmap_stage, hashmap_state, cpu_using, grant_cpu_func)
+                    cpu_using = policy_func(parent_pipes, hashmap_stage, hashmap_state, cpu_using, grant_cpu_func)
         else:
             # Handle timeout
             print("No data received within the timeout period.")
