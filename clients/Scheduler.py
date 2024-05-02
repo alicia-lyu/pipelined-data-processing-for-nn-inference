@@ -30,7 +30,8 @@ class Scheduler:
 
         self.children_states: Dict[int, CPUState] = {}
         self.active_cpus = 0
-        self.CPU_TASKS_CAP = cpu_tasks_cap # TODO: Tune this variable. I think 2-4 is a good number, since our machine has 2 cores
+        self.CPU_TASKS_CAP = cpu_tasks_cap 
+        # TODO: Tune this variable and test performance. I think 2-4 is a good number, since our machine has 2 cores
 
     @trace(__file__)
     def run(self) -> bool:
@@ -71,7 +72,7 @@ class Scheduler:
         return True
 
     @trace(__file__)
-    def fifo(self) -> int:
+    def fifo(self) -> bool:
         if len(self.children_states) == 0:
             return False
         try:
@@ -87,4 +88,5 @@ class Scheduler:
             return True
 
     def slo_oriented():
+        # TODO: Implement
         pass

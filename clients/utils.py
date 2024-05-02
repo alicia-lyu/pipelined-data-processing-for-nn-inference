@@ -19,7 +19,8 @@ def trace(path: str):
 
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int,  
-                  data_paths: List[str], create_client_func: Callable, log_path: str, stop_flag: Event = None) -> int:
+                  data_paths: List[str], create_client_func: Callable, 
+                  log_path: str, stop_flag: Event = None) -> int:
     
     processes: List[Process] = []
     blocked_time = 0
@@ -38,7 +39,7 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int,
         # TODO: Generate a random SLO latency goal for each process.
         # A good number should be a little more than the median latency that we profiled,
         # which dependends on the min_interval and max_interval.
-        # --- come out with a good formula to set the max_slo and min_slo?
+        # --- come out with a good formula to calculate the max_slo and min_slo based on min_interval and max_interval?
         p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
         print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
@@ -85,27 +86,3 @@ def read_data_from_folder(root_folder: str, extension: str) -> List[str]:
     print(read_data_from_folder.trace_prefix(), f"Found {len(image_paths)} data.")
 
     return image_paths
-
-@trace(__file__)
-def batch_arrival_audio(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
-                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None) -> int:
-    start_time = time.time()
-    log_path = "../log_audio/"+system_type+"_"+str(start_time)+"/"
-    os.makedirs(log_path, exist_ok=True)
-    for i in range(0, len(data_paths), batch_size):
-        batch = data_paths[i: i + batch_size]
-        client_id = i // batch_size
-        if stop_flag!=None:
-            if stop_flag.is_set():
-                print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
-                return client_id
-        # TODO: request arrival time
-        create_client_func(log_path,batch, client_id)
-        # TODO: response time for naive sequential
-        print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} audios.")
-        interval = random.uniform(min_interval, max_interval)
-        time.sleep(interval)
-    
-    client_num = len(data_paths) // batch_size
-    print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
-    return client_num
