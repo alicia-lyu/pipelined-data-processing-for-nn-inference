@@ -4,22 +4,11 @@ import tritonclient.http as httpclient
 import time
 import sys
 from multiprocessing.connection import Connection
-from enum import Enum
+from Scheduler import Message
 from utils import trace
 from image_processing import detection_preprocessing, detection_postprocessing, recognition_postprocessing
 
 SAVE_INTERMEDIATE_IMAGES = False
-
-class Message(Enum):
-    RELINQUISH_CPU = "RELINQUISH_CPU"
-    ALLOCATE_CPU = "ALLOCATE_CPU"
-    WAITING_FOR_CPU = "WAITING_FOR_CPU"
-    FINISHED = "FINISHED"
-
-class CPUState(Enum):
-    CPU = "CPU"
-    GPU = "GPU"
-    WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
 class TextRecognitionClient:
     def __init__(self, log_dir_name, image_paths, process_id, signal_pipe: Connection = None, t0: float = None) -> None:

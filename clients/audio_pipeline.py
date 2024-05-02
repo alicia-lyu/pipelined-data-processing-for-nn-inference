@@ -3,7 +3,7 @@ from multiprocessing import Process, Event, Pipe
 from audio_client import AudioRecognitionClient
 from typing import List
 from utils import get_batch_args, trace, read_data_from_folder, AUDIO_FOLDER, batch_arrival
-from image_pipeline import Scheduler, Policy
+from Scheduler import Scheduler, Policy
 import time, os
 
 @trace(__file__)

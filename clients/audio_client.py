@@ -6,7 +6,7 @@ import sys, os
 from multiprocessing.connection import Connection
 import time
 from utils import trace
-from image_client import Message
+from Scheduler import Message
 
 class AudioRecognitionClient:
     def __init__(self, log_dir_name, audio_paths, process_id, signal_pipe: Connection = None, t0: float = None):
