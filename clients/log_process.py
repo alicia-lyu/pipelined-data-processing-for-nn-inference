@@ -1,5 +1,7 @@
 import os
 import re
+import matplotlib.pyplot as plt
+
 
 def read_files_in_directory(directory:str,system_type:str):
     files = []
@@ -79,3 +81,32 @@ if __name__ == "__main__":
 
     pipeline_process_infos = read_and_extract_info(directory,"pipeline")
     print("pipeline all process time:",pipeline_process_infos[-1]['postprocessing_ended']-pipeline_process_infos[0]['process_created'])
+
+    naive_latency = []
+    non_coordinate_latency = []
+    pipeline_latency = []
+
+    for info in naive_process_infos:
+        naive_latency.append(info['process_length'])
+    for info in non_coordinate_process_infos:
+        non_coordinate_latency.append(info['process_length'])
+    for info in pipeline_process_infos:
+        pipeline_latency.append(info['process_length'])
+    
+    batch_num = list(range(len(naive_latency)))
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(batch_num, naive_latency, label='Naive Latency')
+
+    plt.plot(batch_num, non_coordinate_latency, label='Non-coordinate Latency')
+
+    plt.plot(batch_num, pipeline_latency, label='Pipeline Latency')
+
+    plt.legend()
+
+    plt.title('Latency Comparison')
+    plt.xlabel('Batch Number')
+    plt.ylabel('Latency')
+
+    plt.grid(True)
+    plt.show()

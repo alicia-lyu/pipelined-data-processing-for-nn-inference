@@ -5,6 +5,8 @@ import random
 import argparse
 from multiprocessing import Event,Process
 
+PROCESS_CAP = 50
+
 def trace(path: str):
     file_name = os.path.basename(path)
     def decorator(func: Callable):

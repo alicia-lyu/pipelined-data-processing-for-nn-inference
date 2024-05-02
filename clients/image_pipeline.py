@@ -106,7 +106,7 @@ if __name__ == "__main__":
     batch_arrival_process = Process(target=batch_arrival, \
                                 args=(args.min, args.max, args.batch_size,args.type, \
                                     image_paths, \
-                                    lambda log_dir_name,batch, id: create_client(log_dir_name,batch, id,child_pipes[id]),stop_flag))
+                                    lambda log_dir_name,batch, id,t0: create_client(log_dir_name,batch, id,child_pipes[id],t0),stop_flag))
     batch_arrival_process.start()
 
     schedule(parent_pipes,child_pipes,args.timeout, grant_cpu, relinquish_cpu, non_sharing_pipeline)

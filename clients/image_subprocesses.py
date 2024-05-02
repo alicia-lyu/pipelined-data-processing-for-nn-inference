@@ -6,7 +6,7 @@ from multiprocessing import Process
 CLIENT = "image_client.py"
 
 @trace(__file__)
-def run_subprocess(log_dir_name:str,image_paths: List[str], process_id: int, t0: float = None) -> None:
+def run_subprocess(log_dir_name:str, image_paths: List[str], process_id: int, t0: float = None) -> None:
     p = Process(target=client, args=(log_dir_name,image_paths, process_id, None, t0))
     p.start()
     return p
