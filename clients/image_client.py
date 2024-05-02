@@ -225,8 +225,7 @@ def send_signal(process_id, signal_to_send, signal_pipe: Connection):
     signal_pipe.send((process_id, signal_to_send))
 
 @trace(__file__)
-def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = None):
-    t0 = time.time()
+def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = None, t0: float = None):
     with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t0)+" process created\n")
         f.close()

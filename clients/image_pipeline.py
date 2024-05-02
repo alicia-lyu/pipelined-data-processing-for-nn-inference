@@ -81,9 +81,9 @@ def schedule(parent_pipes: List[Connection],child_pipes: List[Connection],timeou
             break  # Break out of the loop
 
 @trace(__file__)
-def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
+def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
     child_pipe.send((process_id, Message.CREATE_PROCESS))
-    p = Process(target=client, args=(log_dir_name,image_paths, process_id, child_pipe))
+    p = Process(target=client, args=(log_dir_name,image_paths, process_id, child_pipe, t0))
     p.start()
     return p
 

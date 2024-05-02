@@ -16,10 +16,12 @@ def trace(path: str):
 
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
-                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None,processes: List[Process] = None) -> int:
+                  data_paths: List[str], create_client_func: Callable, stop_flag: Event = None,
+                  processes: List[Process] = None) -> int:
     start_time = time.time()
     log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
     os.makedirs(log_path, exist_ok=True)
+    blocked_time = 0
     for i in range(0, len(data_paths), batch_size):
     # for i in range(0, 10, batch_size):
         batch = data_paths[i: i + batch_size]
@@ -28,11 +30,14 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
             if stop_flag.is_set():
                 print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
                 return client_id
-        # TODO: request arrival time
-        p = create_client_func(log_path,batch, client_id)
-        if processes!=None:
+        t0 = time.time()
+        # Calibrate t0 for naive sequential to include the blocked time by execution of previous processes
+        # In other systems, blocked_time should be close to 0, as it only involves a non-blocking behavior of starting the processes
+        p = create_client_func(log_path, batch, client_id, t0 + blocked_time)
+        blocked_time += time.time() - t0
+        print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
+        if processes !=None:
             processes.append(p)
-        # TODO: response time for naive sequential
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval)
         time.sleep(interval)
