@@ -22,7 +22,7 @@ def extract_info_from_file(file_path):
         lines = file.readlines()
         process_info = {}
         process_info['file_path'] = file_path
-        for line in lines:
+        for line in lines: # TODO: Parse audio log files
             if line.strip():
                 if ' process created' in line:
                     process_info['process_created'] = float(line.split()[0])

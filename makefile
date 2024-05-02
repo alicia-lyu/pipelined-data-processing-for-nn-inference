@@ -11,12 +11,12 @@ MAX_INTERVAL_IMAGE := 0.3
 # 0.1--0.2: First 3 systems are unable to stablize in 129 batchess --- Use more data to run the server longer?
 # 0.15--0.3: Only subprocesses is able to stablize
 # 0.1--0.5: Both subprocesses and pipeline are able to stablize
-MIN_INTERVAL_AUDIO := 5
-MAX_INTERVAL_AUDIO := 20
+MIN_INTERVAL_AUDIO := 1.5
+MAX_INTERVAL_AUDIO := 3
 
 BATCH_SIZE := 2
 TIMEOUT_IMAGE := 10
-TIMEOUT_AUDIO := 100
+TIMEOUT_AUDIO := 50
 
 $(OPEN_CV):
 	wget https://www.dropbox.com/s/r2ingd0l3zt8hxs/frozen_east_text_detection.tar.gz

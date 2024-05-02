@@ -4,24 +4,9 @@ from transformers import Wav2Vec2Processor
 import torch
 import sys, os
 from multiprocessing.connection import Connection
-from enum import Enum
 import time
-
-class Message(Enum):
-    CPU_AVAILABLE = "CPU_AVAILABLE"
-    WAITING_FOR_CPU = "WAITING_FOR_CPU"
-    CREATE_PROCESS = "CREATE_PROCESS"
-
-class Stage(Enum):
-    NOT_START = "NOT_START"
-    PREPROCESSING = "PREPROCESSING"
-    RECOGNITION_INFERENCE = "RECOGNITION_INFERENCE"
-    POSTPROCESSING = "POSTPROCESSING"
-
-class CPUState(Enum):
-    CPU = "CPU"
-    GPU = "GPU"
-    WAITING_FOR_CPU = "WAITING_FOR_CPU"
+from utils import trace
+from image_client import Message
 
 class AudioRecognitionClient:
     def __init__(self, log_dir_name, audio_paths, process_id, signal_pipe: Connection = None, t0: float = None):
@@ -42,6 +27,7 @@ class AudioRecognitionClient:
     def wait_signal(self, signal_awaited: str) -> None:
         if self.signal_pipe is None:  # Not coordinating multiple processes
             return
+        self.send_signal(Message.WAITING_FOR_CPU)
         while True:
             receiver_id, signal_type = self.signal_pipe.recv()
             assert(receiver_id == self.process_id)
@@ -53,7 +39,9 @@ class AudioRecognitionClient:
             return
         self.signal_pipe.send((self.process_id, signal_to_send))
 
+    @trace(__file__)
     def audio_preprocess(self, processor: Wav2Vec2Processor):
+        print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t1 = time.time()
         audios = []
         for path in self.audio_paths:
@@ -67,33 +55,40 @@ class AudioRecognitionClient:
         reduced_dim = [tensor[0] for tensor in padded_data]
         stacked_data = torch.stack(reduced_dim, dim=0)
         self.t2 = time.time()
+        print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         return stacked_data
 
+    @trace(__file__)
     def audio_postprocess(self, results, processor: Wav2Vec2Processor):
+        print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t4 = time.time()
         transcriptions = []
         predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
         for prediction in predicted_ids:
             transcriptions.append(processor.decode(prediction))
         self.t5 = time.time()
+        print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         return transcriptions
 
+    @trace(__file__)
     def run(self):
-        self.wait_signal("ALLOCATE_CPU")
+        self.wait_signal(Message.ALLOCATE_CPU)
         processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
         preprocessed_audios = self.audio_preprocess(processor)
-        self.send_signal("RELINQUISH_CPU")
+        self.send_signal(Message.RELINQUISH_CPU)
 
+        print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE start at {time.strftime('%H:%M:%S.')}")
         triton_client = httpclient.InferenceServerClient(url="localhost:8000")
         infer_inputs = [httpclient.InferInput("input", preprocessed_audios.shape, datatype="FP32")]
         infer_inputs[0].set_data_from_numpy(preprocessed_audios.numpy())
-
-        self.wait_signal("ALLOCATE_CPU")
         self.t3 = time.time()
         results = triton_client.infer(model_name="speech_recognition", inputs=infer_inputs)
-        self.send_signal("RELINQUISH_CPU")
+        print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE finish at {time.strftime('%H:%M:%S.')}")
 
+        self.wait_signal(Message.ALLOCATE_CPU)
         transcriptions = self.audio_postprocess(results, processor)
+        self.send_signal(Message.FINISHED)
+
         self.log()
         print(transcriptions)
         return transcriptions
