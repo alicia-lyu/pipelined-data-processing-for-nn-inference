@@ -82,7 +82,7 @@ class Scheduler:
 
 @trace(__file__)
 def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
-    client = TextRecognitionClient(log_dir_name,image_paths, process_id, None, t0)
+    client = TextRecognitionClient(log_dir_name, image_paths, process_id, child_pipe, t0)
     p = Process(target=client.run)
     p.start()
     return p
