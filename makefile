@@ -11,8 +11,8 @@ MAX_INTERVAL_IMAGE := 0.3
 # 0.1--0.2: First 3 systems are unable to stablize in 129 batchess --- Use more data to run the server longer?
 # 0.15--0.3: Only subprocesses is able to stablize
 # 0.1--0.5: Both subprocesses and pipeline are able to stablize
-MIN_INTERVAL_AUDIO := 1
-MAX_INTERVAL_AUDIO := 5
+MIN_INTERVAL_AUDIO := 5
+MAX_INTERVAL_AUDIO := 20
 
 BATCH_SIZE := 2
 TIMEOUT := 10
@@ -81,7 +81,7 @@ test-audio: $(AUDIO_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
 
 test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
 
 test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"

@@ -6,7 +6,7 @@ import argparse
 import multiprocessing
 from multiprocessing import Event,Process
 
-PROCESS_CAP = 50
+PROCESS_CAP = 20
 
 def trace(path: str):
     file_name = os.path.basename(path)

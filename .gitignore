@@ -6,6 +6,7 @@ triton-tutorial-part5/
 __pycache__
 /intermediates/*
 /log_image/*
+/log_audio/*
 *.swp
 *~
 *.png

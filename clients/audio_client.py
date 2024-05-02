@@ -94,6 +94,7 @@ class AudioRecognitionClient:
         self.send_signal("RELINQUISH_CPU")
 
         transcriptions = self.audio_postprocess(results, processor)
+        self.log()
         return transcriptions
 
     def log(self):
