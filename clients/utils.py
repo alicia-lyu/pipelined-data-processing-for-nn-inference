@@ -19,17 +19,17 @@ def trace(path: str):
 
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
-                  data_paths: List[str], create_client_func: Callable, stop_flag: Event = None,
-                  processes: List[Process] = None) -> int:
+                  data_paths: List[str], create_client_func: Callable, stop_flag: Event = None) -> int:
     start_time = time.time()
     log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
     os.makedirs(log_path, exist_ok=True)
+    processes: List[Process] = []
     blocked_time = 0
     for i in range(0, len(data_paths), batch_size):
     # for i in range(0, 10, batch_size):
         batch = data_paths[i: i + batch_size]
         client_id = i // batch_size
-        if stop_flag!=None:
+        if stop_flag != None:
             if stop_flag.is_set():
                 print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
                 return client_id
@@ -45,16 +45,19 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
         p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
         print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
-        if processes != None:
+        if p != None:
             processes.append(p)
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
         # TODO: Different data arrival distribution, mainly consider Poisson.
         time.sleep(interval)
-    
-    client_num = len(data_paths) // batch_size
-    print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
-    return client_num
+
+    if stop_flag.is_set():
+        client_num = len(data_paths) // batch_size
+        print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
+        for p in processes:
+            p.terminate()
+        return client_num
 
 @trace(__file__)
 def get_batch_args() -> argparse.Namespace:

@@ -26,5 +26,3 @@ if __name__ == "__main__":
         batch_arrival(args.min, args.max, args.batch_size, args.type, image_paths, run_subprocess)
     elif args.type == "naive-sequential":
         batch_arrival(args.min, args.max, args.batch_size, args.type, image_paths, naive_sequential)
-
-    # TODO: call subprocess.return_code() or some other API to get the response time stamp?

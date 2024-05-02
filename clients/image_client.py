@@ -38,17 +38,10 @@ from utils import trace
 SAVE_INTERMEDIATE_IMAGES = False
 
 class Message(Enum):
-    CPU_AVAILABLE = "CPU_AVAILABLE"
+    RELINQUISH_CPU = "RELINQUISH_CPU"
+    ALLOCATE_CPU = "ALLOCATE_CPU"
     WAITING_FOR_CPU = "WAITING_FOR_CPU"
-    CREATE_PROCESS = "CREATE_PROCESS"
-
-class Stage(Enum):
-    NOT_START = "NOT_START"
-    PREPROCESSING = "PREPROCESSING"
-    DETECTION_INFERENCE = "DETECTION_INFERENCE"
-    CROPPING = "CROPPING"
-    RECOGNITION_INFERENCE = "RECOGNITION_INFERENCE"
-    POSTPROCESSING = "POSTPROCESSING"
+    FINISHED = "FINISHED"
 
 class CPUState(Enum):
     CPU = "CPU"
@@ -209,7 +202,7 @@ def wait_signal(process_id: int, signal_awaited: str, signal_pipe: Connection) -
     if signal_pipe == None: # Not coordinating multiple processes
         return
     start = time.time()
-    # send a signal that it is waiting
+    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     while True:
         receiver_id, signal_type = signal_pipe.recv()
         if receiver_id == process_id and signal_type == signal_awaited:
@@ -230,7 +223,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         f.write(str(t0)+" process created\n")
         f.close()
     #### PREPROCESSING (CPU)
-    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe)
 
     t1 = time.time()
     with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
@@ -253,7 +246,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         f.write(str(t2)+" preprocessing ended, detection inference started\n")
         f.close()
     # print("Detection preprocessing succeeded, took %.5f ms." % (t2 - t1))
-    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) # Parent can now schedule another CPU task
+    send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe) # Parent can now schedule another CPU task
     print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
 
     #### DETECTION INFERENCE (GPU)
@@ -278,8 +271,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     #### CROPPING (CPU)
     print(main.trace_prefix(), f"Process {process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
 
-    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
-    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
+    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe) 
     t4 = time.time()
     with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t4)+" cropping started\n")
@@ -291,7 +283,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
     cropped_images = np.array(cropped_images, dtype=np.single)
     if cropped_images.shape[0] == 0:
-        send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+        send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe)
         end_time = time.time()
         print(main.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}")
         with open(log_dir_name+str(process_id).zfill(3)+".txt","w") as f:
@@ -311,7 +303,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         f.close()
 
     print(main.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
-    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe)
 
     #### RECOGNITION INFERENCE (GPU)
     recognition_input = httpclient.InferInput(
@@ -330,15 +322,14 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
 
     #### POSTPROCESSING (CPU)
     print(main.trace_prefix(), f"Process {process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
-    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
-    wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe)
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
     t7 = time.time()
     with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t7)+" postprrocessing started\n")
         f.close()
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
-    send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
+    send_signal(process_id, Message.FINISHED, signal_pipe)
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
     t8 = time.time()
     print(final_text)
