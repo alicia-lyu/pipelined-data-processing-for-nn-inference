@@ -18,11 +18,9 @@ def trace(path: str):
     return decorator
 
 @trace(__file__)
-def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
-                  data_paths: List[str], create_client_func: Callable, stop_flag: Event = None) -> int:
-    start_time = time.time()
-    log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
-    os.makedirs(log_path, exist_ok=True)
+def batch_arrival(min_interval: int, max_interval: int, batch_size: int,  
+                  data_paths: List[str], create_client_func: Callable, log_path: str, stop_flag: Event = None) -> int:
+    
     processes: List[Process] = []
     blocked_time = 0
     for i in range(0, len(data_paths), batch_size):
@@ -46,19 +44,14 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
         print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
         if p != None:
             processes.append(p)
-        print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
+        print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} data in its batch.")
         interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
         # TODO: Different data arrival distribution, mainly consider Poisson.
         time.sleep(interval)
 
     client_num = len(data_paths) // batch_size
     print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
-    if stop_flag is None:
-        return client_num
-    elif stop_flag.is_set():
-        for p in processes:
-            p.terminate()
-        return client_num
+    return client_num
 
 @trace(__file__)
 def get_batch_args() -> argparse.Namespace:
@@ -80,29 +73,18 @@ IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
 AUDIO_FOLDER = "../../datasets/audio_data/mp3_16_data_2"
 
 @trace(__file__)
-def read_images_from_folder(root_folder: str) -> List[str]:
+def read_data_from_folder(root_folder: str, extension: str) -> List[str]:
     image_paths = []
 
     for root, dirs, files in os.walk(root_folder):
         for file in files:
-            if file.lower().endswith(".jpg"):
+            if file.lower().endswith(extension):
                 image_path = os.path.join(root, file)
                 image_paths.append(image_path)
 
-    print(read_images_from_folder.trace_prefix(), f"Found {len(image_paths)} images.")
+    print(read_data_from_folder.trace_prefix(), f"Found {len(image_paths)} images.")
 
     return image_paths
-
-def read_audios_from_folder(root_folder: str) -> List[str]:
-    audio_paths = []
-
-    for root, dirs, files in os.walk(root_folder):
-        for file in files:
-            if file.lower().endswith(".mp3"):
-                audio_path = os.path.join(root, file)
-                audio_paths.append(audio_path)
-
-    return audio_paths
 
 @trace(__file__)
 def batch_arrival_audio(min_interval: int, max_interval: int, batch_size: int, system_type:str, 

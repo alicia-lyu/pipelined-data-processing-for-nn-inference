@@ -6,11 +6,14 @@ WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
 AUDIO_CLIENT1=$(BASEDIR)/clients/audio_client.py
 # TODO: Save logs using different intervals for future comparison
-MIN_INTERVAL := 0.15
-MAX_INTERVAL := 0.3
+MIN_INTERVAL_IMAGE := 0.15
+MAX_INTERVAL_IMAGE := 0.3
 # 0.1--0.2: First 3 systems are unable to stablize in 129 batchess --- Use more data to run the server longer?
 # 0.15--0.3: Only subprocesses is able to stablize
 # 0.1--0.5: Both subprocesses and pipeline are able to stablize
+MIN_INTERVAL_AUDIO := 1
+MAX_INTERVAL_AUDIO := 5
+
 BATCH_SIZE := 2
 TIMEOUT := 10
 
@@ -57,13 +60,13 @@ test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
 
 test-image-non-coordinated-batch: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
 
 test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
 
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
+	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
 
 image-all: $(IMAGE_CLIENT1) triton-server
 	make test-image-naive-sequential
@@ -78,7 +81,7 @@ test-audio: $(AUDIO_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
 
 test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
 
 test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
