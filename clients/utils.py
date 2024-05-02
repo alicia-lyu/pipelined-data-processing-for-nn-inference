@@ -38,13 +38,18 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
         # In other systems, blocked_time should be close to 0, as it only involves a non-blocking behavior of starting the processes
         while len(multiprocessing.active_children()) > PROCESS_CAP:
             time.sleep(0.001)
+        # TODO: Generate a random SLO latency goal for each process.
+        # A good number should be a little more than the median latency that we profiled,
+        # which dependends on the min_interval and max_interval.
+        # --- come out with a good formula to set the max_slo and min_slo?
         p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
         print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
         if processes != None:
             processes.append(p)
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
-        interval = random.uniform(min_interval, max_interval)
+        interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
+        # TODO: Different data arrival distribution, mainly consider Poisson.
         time.sleep(interval)
     
     client_num = len(data_paths) // batch_size
