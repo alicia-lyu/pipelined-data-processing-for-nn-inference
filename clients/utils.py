@@ -82,7 +82,7 @@ def read_data_from_folder(root_folder: str, extension: str) -> List[str]:
                 image_path = os.path.join(root, file)
                 image_paths.append(image_path)
 
-    print(read_data_from_folder.trace_prefix(), f"Found {len(image_paths)} images.")
+    print(read_data_from_folder.trace_prefix(), f"Found {len(image_paths)} data.")
 
     return image_paths
 

@@ -95,6 +95,7 @@ class AudioRecognitionClient:
 
         transcriptions = self.audio_postprocess(results, processor)
         self.log()
+        print(transcriptions)
         return transcriptions
 
     def log(self):

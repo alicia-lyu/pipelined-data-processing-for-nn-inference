@@ -4,8 +4,6 @@ from typing import List
 from audio_client import AudioRecognitionClient
 import time, os
 
-CLIENT = "audio_client.py"
-
 @trace(__file__)
 def run_subprocess(log_dir_name:str, audio_paths: List[str], process_id: int, t0: float = None) -> None:
     client = AudioRecognitionClient(log_dir_name, audio_paths, process_id, None, t0)

@@ -130,7 +130,7 @@ class TextRecognitionClient:
         cropped_images = self.crop(detection_response, preprocessed_images)
         if cropped_images is None:
             self.log()
-            self.send_signal(Message.RELINQUISH_CPU)
+            self.send_signal(Message.FINISHED)
             return []
         self.send_signal(Message.RELINQUISH_CPU)
 

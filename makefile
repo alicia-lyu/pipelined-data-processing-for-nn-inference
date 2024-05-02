@@ -15,7 +15,8 @@ MIN_INTERVAL_AUDIO := 5
 MAX_INTERVAL_AUDIO := 20
 
 BATCH_SIZE := 2
-TIMEOUT := 10
+TIMEOUT_IMAGE := 10
+TIMEOUT_AUDIO := 100
 
 $(OPEN_CV):
 	wget https://www.dropbox.com/s/r2ingd0l3zt8hxs/frozen_east_text_detection.tar.gz
@@ -60,13 +61,13 @@ test-image: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_client.py
 
 test-image-non-coordinated-batch: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="non-coordinate-batch"
 
 test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
+	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="naive-sequential"
 
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
+	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="pipeline"
 
 image-all: $(IMAGE_CLIENT1) triton-server
 	make test-image-naive-sequential
@@ -81,7 +82,10 @@ test-audio: $(AUDIO_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
 
 test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="non-coordinate-batch"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="non-coordinate-batch"
 
 test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="naive-sequential"
+	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="naive-sequential"
+
+test-audio-pipeline: $(AUDIO_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./audio_pipeline.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="pipeline"
