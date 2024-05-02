@@ -29,10 +29,9 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
     # for i in range(0, 10, batch_size):
         batch = data_paths[i: i + batch_size]
         client_id = i // batch_size
-        if stop_flag != None:
-            if stop_flag.is_set():
-                print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
-                return client_id
+        if stop_flag is not None and stop_flag.is_set():
+            print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
+            return client_id
         t0 = time.time()
         # Calibrate t0 for naive sequential to include the blocked time by execution of previous processes
         # In other systems, blocked_time should be close to 0, as it only involves a non-blocking behavior of starting the processes
@@ -52,9 +51,11 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
         # TODO: Different data arrival distribution, mainly consider Poisson.
         time.sleep(interval)
 
-    if stop_flag.is_set():
-        client_num = len(data_paths) // batch_size
-        print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
+    client_num = len(data_paths) // batch_size
+    print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
+    if stop_flag is None:
+        return client_num
+    elif stop_flag.is_set():
         for p in processes:
             p.terminate()
         return client_num

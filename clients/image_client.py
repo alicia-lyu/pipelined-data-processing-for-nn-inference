@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
+import os, cv2
 import numpy as np
 import tritonclient.http as httpclient
 import time
@@ -47,160 +47,167 @@ class CPUState(Enum):
     GPU = "GPU"
     WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
-@trace(__file__)
-def wait_signal(process_id: int, signal_awaited: str, signal_pipe: Connection) -> None:
-    if signal_pipe == None: # Not coordinating multiple processes
-        return
-    start = time.time()
-    send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
-    while True:
-        receiver_id, signal_type = signal_pipe.recv()
-        if receiver_id == process_id and signal_type == signal_awaited:
-            break
-    end = time.time()
-    print(wait_signal.trace_prefix(), f"Process {process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
-
-@trace(__file__)
-def send_signal(process_id, signal_to_send, signal_pipe: Connection):
-    if signal_pipe == None: # Not coordinating multiple processes
-        return
-    print(send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
-    signal_pipe.send((process_id, signal_to_send))
-
-@trace(__file__)
-def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = None, t0: float = None):
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t0)+" process created\n")
-        f.close()
-    #### PREPROCESSING (CPU)
-    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe)
-
-    t1 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t1)+" preprocessing started\n")
-        f.close()
-    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
-
-
-    raw_images = []
-    for path in image_paths:
-        raw_images.append(cv2.imread(path))
-
-    preprocessed_images = []
-    for raw_image in raw_images:
-        preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
-    preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
-
-    t2 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t2)+" preprocessing ended, detection inference started\n")
-        f.close()
-    # print("Detection preprocessing succeeded, took %.5f ms." % (t2 - t1))
-    send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe) # Parent can now schedule another CPU task
-    print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
-
-    #### DETECTION INFERENCE (GPU)
-    client = httpclient.InferenceServerClient(url="localhost:8000")
-    detection_input = httpclient.InferInput(
-        "input_images:0", preprocessed_images.shape, datatype="FP32" 
-    )
-    detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
-
+class TextRecognitionClient:
+    def __init__(self, log_dir_name, image_paths, process_id, signal_pipe: Connection = None, t0: float = None) -> None:
+        self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"
+        self.image_paths = image_paths
+        self.process_id = process_id
+        self.triton_client = httpclient.InferenceServerClient(url="localhost:8000")
+        self.pipe = signal_pipe
+        if t0 is None:
+            self.t0 = time.time()
+        else:
+            self.t0 = t0
+        self.t1 = None
+        self.t2 = None
+        self.t3 = None
+        self.t4 = None
+        self.t5 = None
+        self.t6 = None
+        self.t7 = None
+        self.t8 = None
     
-    detection_response = client.infer(
-        model_name="text_detection", inputs=[detection_input]
-    )
-    # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
-    # This should be fine, as the task here is not compute-intensive
-    t3 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t3)+" detection inference ended\n")
-        f.close()
-    # print("Text detection succeeded, took %.5f ms." % (t2 - t1))
+    @trace(__file__)
+    def preprocess(self):
+        self.t1 = time.time()
+        print(self.preprocess.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        raw_images = []
+        for path in image_paths:
+            raw_images.append(cv2.imread(path))
 
-    #### CROPPING (CPU)
-    print(main.trace_prefix(), f"Process {process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        preprocessed_images = []
+        for raw_image in raw_images:
+            preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
+        preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
+        self.t2 = time.time()
+        print(self.preprocess.trace_prefix(), f"Process {process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
+        return preprocessed_images
 
-    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe) 
-    t4 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t4)+" cropping started\n")
-        f.close()
-    print(main.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
+    @trace(__file__)
+    def detect(self, preprocessed_images):
+        detection_input = httpclient.InferInput(
+            "input_images:0", preprocessed_images.shape, datatype="FP32" 
+        )
+        detection_input.set_data_from_numpy(preprocessed_images, binary_data=True)
+        detection_response = self.triton_client.infer(
+            model_name="text_detection", inputs=[detection_input]
+        )
+        self.t3 = time.time()
+        print(self.detect.trace_prefix(), f"Process {process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        return detection_response
 
-    # Depending on parent to schedule the first process, i.e., the process that has waited the longest
-    # FIFO policy. Assuming there is no priority among processes
-    cropped_images = detection_postprocessing(detection_response,preprocessed_images)
-    cropped_images = np.array(cropped_images, dtype=np.single)
-    if cropped_images.shape[0] == 0:
-        send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe)
-        end_time = time.time()
-        print(main.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}")
-        with open(log_dir_name+str(process_id).zfill(3)+".txt","w") as f:
+    @trace(__file__)
+    def crop(self, detection_response, preprocessed_images):
+        self.t4 = time.time()
+        print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
+
+        # Depending on parent to schedule the first process, i.e., the process that has waited the longest
+        # FIFO policy. Assuming there is no priority among processes
+        cropped_images = detection_postprocessing(detection_response,preprocessed_images)
+        cropped_images = np.array(cropped_images, dtype=np.single)
+        if cropped_images.shape[0] == 0:
+            print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}", file=sys.stderr)
+            return
+        self.t5 = time.time()
+        print(self.crop.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+        return cropped_images
+
+    @trace(__file__)
+    def recognize(self, cropped_images):
+        recognition_input = httpclient.InferInput(
+            "input.1", cropped_images.shape, datatype="FP32"
+        )
+        recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
+        
+        recognition_response = self.triton_client.infer(
+            model_name="text_recognition", inputs=[recognition_input]
+        )
+        self.t6 = time.time()
+        print(self.recognize.trace_prefix(), f"Process {process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        return recognition_response
+
+    @trace(__file__)
+    def postprocess(self, recognition_response):
+        print(self.postprocess.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        self.t7 = time.time()
+        final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
+        print(self.postprocess.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
+        self.t8 = time.time()
+        print(final_text)
+        return final_text
+    
+    def run(self) -> str:
+        #### PREPROCESSING (CPU)
+        self.wait_signal(Message.ALLOCATE_CPU)
+        preprocessed_images = self.preprocess()
+        self.send_signal(Message.RELINQUISH_CPU) # Parent can now schedule another CPU task
+
+        #### DETECTION INFERENCE (GPU)
+        detection_response = self.detect(preprocessed_images)
+        # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
+        # This should be fine, as the task here is not compute-intensive
+
+        #### CROPPING (CPU)
+        self.wait_signal(Message.ALLOCATE_CPU) 
+        cropped_images = self.crop(detection_response, preprocessed_images)
+        self.send_signal(Message.RELINQUISH_CPU)
+
+        #### RECOGNITION INFERENCE (GPU)
+        recognition_response = self.recognize(cropped_images)
+
+        #### POSTPROCESSING (CPU)
+        self.wait_signal(Message.ALLOCATE_CPU)
+        final_text = self.postprocess(recognition_response)
+        self.send_signal(Message.FINISHED)
+
+        if final_text is not None:
+            self.log()
+
+        return final_text
+
+    def log(self) -> None:
+        with open(self.filename, "w") as f:
+            f.write(str(self.t0) + " process created\n")
+            f.write(str(self.t1)+" preprocessing started\n")
+            f.write(str(self.t2)+" preprocessing ended, detection inference started\n")
+            f.write(str(self.t3)+" detection inference ended\n")
+            f.write(str(self.t4)+" cropping started\n")
+            f.write(str(self.t5)+" cropping ended, recognition inference started\n")
+            f.write(str(self.t6)+" recognition inference ended\n")
+            f.write(str(self.t7)+" postprrocessing started\n")
+            f.write(str(self.t8)+" postprrocessing ended\n")
             f.write("\n")
-            f.write(str(end_time-t0)+" process length\n")
-            f.write(str(t2-t1)+" preprocessing length\n")
-            f.write(str(t3-t2)+" detection inference length\n")
+            f.write(str(self.t8-self.t0)+" process length\n")
+            f.write(str(self.t2-self.t1)+" preprocessing length\n")
+            f.write(str(self.t3-self.t2)+" detection inference length\n")
+            f.write(str(self.t5-self.t4)+" cropping length\n")
+            f.write(str(self.t6-self.t5)+" recognition inference length\n")
+            f.write(str(self.t8-self.t7)+" postprrocessing length\n")
             f.write("\n")
-            f.write(str(t1-t0)+" waiting for preprocessing time\n")
-            f.write(str(t4-t3)+" waiting for cropping time\n")
+            f.write(str(self.t1-self.t0)+" waiting for preprocessing time\n")
+            f.write(str(self.t4-self.t3)+" waiting for cropping time\n")
+            f.write(str(self.t7-self.t6)+" waiting for postprrocessing time\n")
             f.close()
-        return None
-    
-    t5 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t5)+" cropping ended, recognition inference started\n")
-        f.close()
 
-    print(main.trace_prefix(), f"Process {process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
-    send_signal(process_id, Message.RELINQUISH_CPU, signal_pipe)
+    @trace(__file__)
+    def wait_signal(self, signal_awaited: str) -> None:
+        if self.pipe == None: # Not coordinating multiple processes
+            return
+        start = time.time()
+        self.send_signal(Message.WAITING_FOR_CPU) # tell scheduler that the process is waiting for CPU
+        while True:
+            receiver_id, signal_type = self.pipe.recv()
+            if receiver_id == process_id and signal_type == signal_awaited:
+                break
+        end = time.time()
+        print(self.wait_signal.trace_prefix(), f"Process {process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
 
-    #### RECOGNITION INFERENCE (GPU)
-    recognition_input = httpclient.InferInput(
-        "input.1", cropped_images.shape, datatype="FP32"
-    )
-    recognition_input.set_data_from_numpy(cropped_images, binary_data=True)
-    
-    recognition_response = client.infer(
-        model_name="text_recognition", inputs=[recognition_input]
-    )
-    t6 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t6)+" recognition inference ended\n")
-        f.close()
-    # print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
-
-    #### POSTPROCESSING (CPU)
-    print(main.trace_prefix(), f"Process {process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
-    wait_signal(process_id, Message.ALLOCATE_CPU, signal_pipe)
-    print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
-    t7 = time.time()
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t7)+" postprrocessing started\n")
-        f.close()
-    final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
-    send_signal(process_id, Message.FINISHED, signal_pipe)
-    print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
-    t8 = time.time()
-    print(final_text)
-
-    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
-        f.write(str(t8)+" postprrocessing ended\n")
-        f.write("\n")
-        f.write(str(t8-t0)+" process length\n")
-        f.write(str(t2-t1)+" preprocessing length\n")
-        f.write(str(t3-t2)+" detection inference length\n")
-        f.write(str(t5-t4)+" cropping length\n")
-        f.write(str(t6-t5)+" recognition inference length\n")
-        f.write(str(t8-t7)+" postprrocessing length\n")
-        f.write("\n")
-        f.write(str(t1-t0)+" waiting for preprocessing time\n")
-        f.write(str(t4-t3)+" waiting for cropping time\n")
-        f.write(str(t7-t6)+" waiting for postprrocessing time\n")
-        f.close()
-    
-
-    return final_text
+    @trace(__file__)
+    def send_signal(self, signal_to_send):
+        if self.pipe == None: # Not coordinating multiple processes
+            return
+        print(self.send_signal.trace_prefix(), "Process %d sent signal %s." % (process_id, signal_to_send))
+        self.pipe.send((process_id, signal_to_send))
 
 if __name__ == "__main__":
 
@@ -220,6 +227,7 @@ if __name__ == "__main__":
         image_paths = sys.argv[3:]
         print("Pipeline batch size: "+str(len(image_paths))+"!")
 
-    final_text = main(log_path,image_paths, process_id)
+    client = TextRecognitionClient(log_path, image_paths, process_id)
+    final_text = client.run()
     
     
