@@ -61,6 +61,9 @@ test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
 
+log-process:
+	cd $(BASEDIR)/clients && python ./log_process.py
+	
 test-audio: $(AUDIO_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./audio_client.py
 

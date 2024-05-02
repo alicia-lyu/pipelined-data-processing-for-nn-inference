@@ -227,14 +227,14 @@ def send_signal(process_id, signal_to_send, signal_pipe: Connection):
 @trace(__file__)
 def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = None):
     t0 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t0)+" process created\n")
         f.close()
     #### PREPROCESSING (CPU)
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
 
     t1 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t1)+" preprocessing started\n")
         f.close()
     print(main.trace_prefix(), f"Process {process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
@@ -250,7 +250,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
 
     t2 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t2)+" preprocessing ended, detection inference started\n")
         f.close()
     # print("Detection preprocessing succeeded, took %.5f ms." % (t2 - t1))
@@ -271,7 +271,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     # Potentially multiple processes running on the CPU before this process gets blocked by wait_signal
     # This should be fine, as the task here is not compute-intensive
     t3 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t3)+" detection inference ended\n")
         f.close()
     # print("Text detection succeeded, took %.5f ms." % (t2 - t1))
@@ -282,7 +282,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     send_signal(process_id, Message.WAITING_FOR_CPU, signal_pipe) # tell scheduler that the process is waiting for CPU
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe) 
     t4 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t4)+" cropping started\n")
         f.close()
     print(main.trace_prefix(), f"Process {process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
@@ -291,12 +291,11 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     # FIFO policy. Assuming there is no priority among processes
     cropped_images = detection_postprocessing(detection_response,preprocessed_images)
     cropped_images = np.array(cropped_images, dtype=np.single)
-    print("cropping!!")
     if cropped_images.shape[0] == 0:
         send_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
         end_time = time.time()
         print(main.trace_prefix(), f"Process {process_id}: CROPPING wrong, end early at {time.strftime('%H:%M:%S.')}")
-        with open(log_dir_name+str(process_id)+".txt","w") as f:
+        with open(log_dir_name+str(process_id).zfill(3)+".txt","w") as f:
             f.write("\n")
             f.write(str(end_time-t0)+" process length\n")
             f.write(str(t2-t1)+" preprocessing length\n")
@@ -306,10 +305,9 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
             f.write(str(t4-t3)+" waiting for cropping time\n")
             f.close()
         return None
-    print(main.trace_prefix(), f"Process {process_id}: Cropped image", cropped_images.shape,"based on detection, got %d sub images, took %.5f ms." % (len(cropped_images), (t3 - t2)))
     
     t5 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t5)+" cropping ended, recognition inference started\n")
         f.close()
 
@@ -326,7 +324,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
         model_name="text_recognition", inputs=[recognition_input]
     )
     t6 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t6)+" recognition inference ended\n")
         f.close()
     # print("Text recognition succeeded, took %.5f ms." % (t4 - t3))
@@ -337,7 +335,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     wait_signal(process_id, Message.CPU_AVAILABLE, signal_pipe)
     print(main.trace_prefix(), f"Process {process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
     t7 = time.time()
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t7)+" postprrocessing started\n")
         f.close()
     final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
@@ -346,7 +344,7 @@ def main(log_dir_name:str, image_paths, process_id, signal_pipe: Connection = No
     t8 = time.time()
     print(final_text)
 
-    with open(log_dir_name+str(process_id)+".txt","a") as f:
+    with open(log_dir_name+str(process_id).zfill(3)+".txt","a") as f:
         f.write(str(t8)+" postprrocessing ended\n")
         f.write("\n")
         f.write(str(t8-t0)+" process length\n")

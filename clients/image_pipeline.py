@@ -84,8 +84,8 @@ def schedule(parent_pipes: List[Connection],child_pipes: List[Connection],timeou
 def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection) -> None:
     child_pipe.send((process_id, Message.CREATE_PROCESS))
     p = Process(target=client, args=(log_dir_name,image_paths, process_id, child_pipe))
-    p.daemon = True
     p.start()
+    return p
 
 if __name__ == "__main__":
     stop_flag = Event() # stop the batch arrival when the scheduler stops
@@ -95,6 +95,7 @@ if __name__ == "__main__":
     
     parent_pipes: List[Connection] = []
     child_pipes: List[Connection] = []
+    processes: List[Process] = []
 
     for i in range(len(image_paths) // args.batch_size):
         parent_pipe,child_pipe = Pipe()
@@ -110,3 +111,5 @@ if __name__ == "__main__":
 
     schedule(parent_pipes,child_pipes,args.timeout, grant_cpu, relinquish_cpu, non_sharing_pipeline)
     stop_flag.set()
+    for p in processes:
+        p.terminate()

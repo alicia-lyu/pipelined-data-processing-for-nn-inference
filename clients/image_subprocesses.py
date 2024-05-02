@@ -13,10 +13,12 @@ CLIENT = "image_client.py"
 def run_subprocess(log_dir_name:str,image_paths: List[str], process_id: int) -> None:
     p = Process(target=client, args=(log_dir_name,image_paths, process_id))
     p.start()
+    return p
 
 @trace(__file__)
 def naive_sequential(log_dir_name:str,image_paths: List[str], process_id: int) -> None:
     client(log_dir_name,image_paths, process_id)
+    return None
 
 if __name__ == "__main__":
 

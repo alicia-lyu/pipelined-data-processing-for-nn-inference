@@ -3,7 +3,7 @@ import os
 import time
 import random
 import argparse
-from multiprocessing import Event
+from multiprocessing import Event,Process
 
 def trace(path: str):
     file_name = os.path.basename(path)
@@ -16,7 +16,7 @@ def trace(path: str):
 
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_type:str, 
-                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None) -> int:
+                  data_paths: List[str], create_client_func: Callable, stop_flag:Event = None,processes: List[Process] = None) -> int:
     start_time = time.time()
     log_path = "../log_image/"+system_type+"_"+str(start_time)+"/"
     os.makedirs(log_path, exist_ok=True)
@@ -29,7 +29,9 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int, system_
                 print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
                 return client_id
         # TODO: request arrival time
-        create_client_func(log_path,batch, client_id)
+        p = create_client_func(log_path,batch, client_id)
+        if processes!=None:
+            processes.append(p)
         # TODO: response time for naive sequential
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} images.")
         interval = random.uniform(min_interval, max_interval)
