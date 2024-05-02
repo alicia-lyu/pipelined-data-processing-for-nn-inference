@@ -71,13 +71,17 @@ def audio_postprocess(results, processor: Wav2Vec2Processor):
 def main(log_dir_name:str, audio_paths, process_id, signal_pipe: Connection = None):
     
     t1 = time.time()
-    print(f"t1: {t1}")
+    # print(f"t1: {t1}")
+
+    # --- wait for CPU ---
 
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
     preprocessed_audios = audio_preprocess(audio_paths, processor)
     t2 = time.time()
-    print(f"t2: {t2}")
+    # print(f"t2: {t2}")
+
+    # --- relinquish CPU ---
 
     # setup client
     client = httpclient.InferenceServerClient(url="localhost:8000")
@@ -88,20 +92,23 @@ def main(log_dir_name:str, audio_paths, process_id, signal_pipe: Connection = No
     infer_inputs[0].set_data_from_numpy(preprocessed_audios.numpy())
 
     t3 = time.time()
-    print(f"t3: {t3}")
+    # print(f"t3: {t3}")
+
     # query server
     results = client.infer(model_name="speech_recognition", inputs=infer_inputs)
 
     t4 = time.time()
-    print(f"t4: {t4}")
+    # print(f"t4: {t4}")
 
     transcriptions = audio_postprocess(results, processor)
 
     t5 = time.time()
-    print(f"t5: {t5}")
+    # print(f"t5: {t5}")
 
     for t in transcriptions:
         print(t)
+
+    return transcriptions
 
 if __name__ == "__main__":
 
