@@ -1,17 +1,20 @@
 import os
 import re
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def read_files_in_directory(directory:str,system_type:str):
     files = []
-    for subdir in os.listdir(directory):
+    for subdir in sorted(os.listdir(directory), reverse = True): # Only keeping the largest time stamp
         subdir_path = os.path.join(directory, subdir)
         if os.path.isdir(subdir_path) and subdir.startswith(system_type):
+            print(subdir_path)
             for filename in sorted(os.listdir(subdir_path)):
                 file_path = os.path.join(subdir_path, filename)
                 if os.path.isfile(file_path):
                     files.append(file_path)
+            break
     return files
 
 def extract_info_from_file(file_path):
@@ -92,15 +95,20 @@ if __name__ == "__main__":
         non_coordinate_latency.append(info['process_length'])
     for info in pipeline_process_infos:
         pipeline_latency.append(info['process_length'])
-    
+
     batch_num = list(range(len(naive_latency)))
-    plt.figure(figsize=(10, 6))
+    font = {'family' : 'normal',
+        'weight' : 'bold',
+        'size'   : 22}
 
-    plt.plot(batch_num, naive_latency, label='Naive Latency')
+    plt.rcParams.update({'font.size': 24})
+    plt.figure(figsize=(12, 12))
 
-    plt.plot(batch_num, non_coordinate_latency, label='Non-coordinate Latency')
+    plt.plot(batch_num, naive_latency, label='Naive Latency', color='b')
 
-    plt.plot(batch_num, pipeline_latency, label='Pipeline Latency')
+    plt.plot(batch_num, non_coordinate_latency, label='Non-coordinated Latency', color = 'r')
+
+    plt.plot(batch_num, pipeline_latency, label='Pipeline Latency', color = 'g')
 
     plt.legend()
 
@@ -109,4 +117,13 @@ if __name__ == "__main__":
     plt.ylabel('Latency')
 
     plt.grid(True)
-    plt.show()
+
+    naive_latency = np.array(naive_latency)
+    non_coordinate_latency = np.array(non_coordinate_latency)
+    pipeline_latency = np.array(pipeline_latency)
+
+    plt.axhline(y=np.median(naive_latency), linestyle = '--', color = 'b')
+    plt.axhline(y=np.median(non_coordinate_latency), linestyle = '--', color='r')
+    plt.axhline(y=np.median(pipeline_latency), linestyle = '--', color = 'g')
+
+    plt.savefig("../log_image/latency.png")

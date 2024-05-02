@@ -5,8 +5,12 @@ RESNET=$(MODEL_REPO)/text_recognition/1/model.onnx
 WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
 AUDIO_CLIENT1=$(BASEDIR)/clients/audio_client.py
-MIN_INTERVAL := 0.1
-MAX_INTERVAL := 0.2
+# TODO: Save logs using different intervals for future comparison
+MIN_INTERVAL := 0.15
+MAX_INTERVAL := 0.3
+# 0.1--0.2: First 3 systems are unable to stablize in 129 batchess --- Use more data to run the server longer?
+# 0.15--0.3: Only subprocesses is able to stablize
+# 0.1--0.5: Both subprocesses and pipeline are able to stablize
 BATCH_SIZE := 2
 TIMEOUT := 10
 
@@ -60,6 +64,12 @@ test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
 
 test-image-pipeline: $(IMAGE_CLIENT1) triton-server
 	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL) --max=$(MAX_INTERVAL) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT) --type="pipeline"
+
+image-all: $(IMAGE_CLIENT1) triton-server
+	make test-image-naive-sequential
+	make test-image-non-coordinated-batch
+	make test-image-pipeline
+	make log-process
 
 log-process:
 	cd $(BASEDIR)/clients && python ./log_process.py
