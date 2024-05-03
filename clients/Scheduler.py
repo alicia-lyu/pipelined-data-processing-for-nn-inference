@@ -20,7 +20,7 @@ class CPUState(Enum):
     WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
 class Scheduler:
-    def __init__(self, parent_pipes: List[Connection], timeout_in_seconds: float, policy: Policy, cpu_tasks_cap: int = 1) -> None:
+    def __init__(self, parent_pipes: List[Connection], timeout_in_seconds: float, policy: Policy, cpu_tasks_cap: int = 4) -> None:
         self.parent_pipes: List[Connection] = parent_pipes
         self.timeout: float = timeout_in_seconds
         if policy == Policy.FIFO:
@@ -31,8 +31,7 @@ class Scheduler:
         self.children_states: Dict[int, CPUState] = {}
         self.active_cpus = 0
         self.CPU_TASKS_CAP = cpu_tasks_cap 
-        # TODO: Tune this variable and test performance. I think 2-4 is a good number, since our machine has 2 cores
-
+    
     @trace(__file__)
     def run(self) -> bool:
         # Act on received signal from a child

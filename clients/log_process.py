@@ -3,6 +3,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
+directory = '../log_image/'
 
 def read_files_in_directory(directory:str,system_type:str):
     files = []
@@ -74,8 +75,7 @@ def read_and_extract_info(directory:str,system_type:str):
         process_infos.append(process_info)
     return process_infos
 
-if __name__ == "__main__":
-    directory = '../log_image/'
+def draw_latency_for_each_system():
     naive_process_infos = read_and_extract_info(directory,"naive")
     print("naive sequential all process time:",naive_process_infos[-1]['postprocessing_ended']-naive_process_infos[0]['process_created'])
 
@@ -127,3 +127,47 @@ if __name__ == "__main__":
     plt.axhline(y=np.median(pipeline_latency), linestyle = '--', color = 'g')
 
     plt.savefig("../log_image/latency.png")
+
+def draw_cpu_num_diff_latency():
+    CPU_MAX_NUM = 5
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+
+    pipeline_process_infos = []
+    for i in range(CPU_MAX_NUM):
+        pipeline_process_infos.append(read_and_extract_info(directory,"cpu_"+str(i+1)+"_pipeline"))
+        print("cpu="+str(i)+": pipeline all process time:",pipeline_process_infos[i][-1]['postprocessing_ended']-pipeline_process_infos[i][0]['process_created'])
+    
+    pipeline_latency = []
+
+    for i in range(CPU_MAX_NUM):
+        pipeline_latency.append([])
+        for info in pipeline_process_infos[i]:
+            pipeline_latency[i].append(info['process_length'])
+
+    batch_num = list(range(len(pipeline_latency[0])))
+    font = {'family' : 'normal',
+        'weight' : 'bold',
+        'size'   : 22}
+
+    plt.rcParams.update({'font.size': 24})
+    plt.figure(figsize=(12, 12))
+
+    for i in range(CPU_MAX_NUM):
+        plt.plot(batch_num, pipeline_latency[i], label='CPU = '+str(i+1), color=colors[i])
+
+    plt.legend()
+
+    plt.title('Pipeline Latency Comparison')
+    plt.xlabel('Batch Number')
+    plt.ylabel('Latency')
+
+    plt.grid(True)
+
+    for i in range(CPU_MAX_NUM):
+        pipeline_latency[i] = np.array(pipeline_latency[i])
+        plt.axhline(y=np.median(pipeline_latency[i]), linestyle = '--', color = colors[i])
+
+    plt.savefig("../log_image/latency_CPU.png")
+    
+if __name__ == "__main__":
+    
