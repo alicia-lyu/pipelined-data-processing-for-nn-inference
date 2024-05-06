@@ -12,7 +12,7 @@ from Client import Client
 SAVE_INTERMEDIATE_IMAGES = False
 
 class TextRecognitionClient(Client):
-    def __init__(self, log_dir_name, image_paths, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None) -> None:
+    def __init__(self, log_dir_name, batch, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None) -> None:
         self.t1 = None
         self.t2 = None
         self.t3 = None
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         print("Not pipelined!")
-        image_paths = [
+        batch = [
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG",
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG"
         ]
@@ -166,10 +166,10 @@ if __name__ == "__main__":
     else:
         log_path = sys.argv[1]
         process_id = sys.argv[2]
-        image_paths = sys.argv[3:]
-        print("Pipeline batch size: "+str(len(image_paths))+"!")
+        batch = sys.argv[3:]
+        print("Pipeline batch size: "+str(len(batch))+"!")
 
-    client = TextRecognitionClient(log_path, image_paths, process_id)
+    client = TextRecognitionClient(log_path, batch, process_id)
     final_text = client.run()
     
     

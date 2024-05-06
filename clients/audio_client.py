@@ -10,7 +10,7 @@ from Scheduler import Message
 from Client import Client
 
 class AudioRecognitionClient(Client):
-    def __init__(self, log_dir_name, audio_paths, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None):
+    def __init__(self, log_dir_name, batch, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None):
         self.t1 = None
         self.t2 = None
         self.t3 = None
@@ -22,7 +22,7 @@ class AudioRecognitionClient(Client):
         print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t1 = time.time()
         audios = []
-        for path in self.audio_paths:
+        for path in self.batch:
             audio_input, sample_rate = sf.read(path, dtype='float32')
             input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
             audios.append(input_values)
@@ -86,10 +86,11 @@ class AudioRecognitionClient(Client):
             f.write("\n")
             f.write(f"{self.t1 - self.t0} waiting for preprocessing time\n")
             f.write(f"{self.t4 - self.t3} waiting for postprocessing time\n")
+            f.close()
 
 if __name__ == "__main__":
 
-    audio_paths = [
+    batch = [
         "../../datasets/audio_data/mp3_16_data_2/common_voice_en_100229_16kHz.mp3",
         "../../datasets/audio_data/mp3_16_data_2/common_voice_en_137150_16kHz.mp3"
     ]
@@ -103,9 +104,9 @@ if __name__ == "__main__":
     else:
         log_path = sys.argv[1]
         process_id = sys.argv[2]
-        audio_paths = sys.argv[3:]
-        print("Pipeline batch size: "+str(len(audio_paths))+"!")
+        batch = sys.argv[3:]
+        print("Pipeline batch size: "+str(len(batch))+"!")
     
-    client = AudioRecognitionClient(log_path, audio_paths, process_id)
+    client = AudioRecognitionClient(log_path, batch, process_id)
     transcriptions = client.run()
     print(transcriptions)

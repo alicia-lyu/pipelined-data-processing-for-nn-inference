@@ -71,9 +71,8 @@ class Scheduler:
                         del self.children_deadline_goals[client_id]
                         self.active_cpus -= 1
                     else:
-                        assert(isinstance(signal_type, tuple)) # (t0, priority)
-                        t0, priority = signal_type
-                        self.children_deadline_goals[client_id] = t0 + self.PRIORITY_TO_LATENCY_GOAL[priority]
+                        assert(isinstance(signal_type, float)) # deadline
+                        self.children_deadline_goals[client_id] = signal_type
                         
             else:
                 # Handle timeout
