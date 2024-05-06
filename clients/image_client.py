@@ -7,12 +7,22 @@ from multiprocessing.connection import Connection
 from Scheduler import Message
 from utils import trace
 from image_processing import detection_preprocessing, detection_postprocessing, recognition_postprocessing
-from Client import Client
+from Client import Client, Stats
+from dataclasses import field
+from typing import Dict
 
 SAVE_INTERMEDIATE_IMAGES = False
 
+class ImageStats(Stats):
+    detection_start: float = field(default=None)
+    detection_end: float = field(default=None)
+    cropping_start: float = field(default=None)
+    cropping_end: float = field(default=None)
+    recognition_start: float = field(default=None)
+    recognition_end: float = field(default=None)
+
 class TextRecognitionClient(Client):
-    def __init__(self, log_dir_name, batch, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None) -> None:
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
         self.t1 = None
         self.t2 = None
         self.t3 = None
@@ -121,13 +131,24 @@ class TextRecognitionClient(Client):
         #### POSTPROCESSING (CPU)
         self.wait_signal(Message.ALLOCATE_CPU)
         final_text = self.postprocess(recognition_response)
+        print(final_text)
         self.send_signal(Message.FINISHED)
 
         self.log()
 
-        return final_text
+        return self.stats
 
-    def log(self) -> None:
+    def log(self) -> bool:
+        self.stats["preprocess_start"] = self.t1
+        self.stats["preprocess_end"] = self.t2
+        self.stats["detection_start"] = self.t2
+        self.stats["detection_end"] = self.t3
+        self.stats["cropping_start"] = self.t4
+        self.stats["cropping_end"] = self.t5
+        self.stats["recognition_start"] = self.t5
+        self.stats["recognition_end"] = self.t6
+        self.stats["postprocess_start"] = self.t7
+        self.stats["postprocess_end"] = self.t8
         with open(self.filename, "w") as f:
             f.write(str(self.t0) + " process created\n")
             f.write(str(self.t1)+" preprocessing started\n")
@@ -150,6 +171,7 @@ class TextRecognitionClient(Client):
             f.write(str(self.t4-self.t3)+" waiting for cropping time\n")
             f.write(str(self.t7-self.t6)+" waiting for postprrocessing time\n")
             f.close()
+        return True
 
 if __name__ == "__main__":
 

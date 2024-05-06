@@ -5,6 +5,7 @@ from typing import List, NamedTuple, Optional, Dict
 import os, math, random, numpy as np
 from Scheduler import Policy
 from System import System
+from Client import Stats
 
 class DataType(Enum):
     IMAGE = "image"
@@ -75,13 +76,17 @@ class Comparison:
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
         self.intervals = self.generate_random_intervals()
         self.deadlines = self.generate_deadlines(priority_map)
-        self.stats: Dict[str, Dict[str, float]] = {}
+        self.stats: Dict[str, List[Stats]] = {}
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
         for system_args in system_args_list:
             system = System(self, system_args.system_type, system_args.policy, system_args.cpu_tasks_cap, system_args.lost_cause_threshold)
             system_stats = system.run()
             self.stats[str(system_args)] = system_stats
+        self.plot()
+        
+    def plot(self) -> None:
+        pass # TODO
     
     def generate_random_intervals(self):
         intervals = []

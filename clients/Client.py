@@ -4,9 +4,19 @@ from abc import ABCMeta, abstractmethod
 import tritonclient.http as httpclient # type: ignore
 from utils import trace
 from Scheduler import Message
+from dataclasses import dataclass, field
+from typing import Dict
+
+@dataclass
+class Stats:
+    created: float
+    preprocess_start: float = field(default=None)
+    preprocess_end: float = field(default=None)
+    postprocess_start: float = field(default=None)
+    postprocess_end: float = field(default=None)
 
 class Client(metaclass=ABCMeta):
-    def __init__(self, log_dir_name, batch, process_id, signal_pipe: Connection = None, t0: float = None):
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None):
         self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"
         self.batch = batch
         self.process_id = process_id
@@ -16,6 +26,8 @@ class Client(metaclass=ABCMeta):
             self.t0 = time.time()
         else:
             self.t0 = t0
+        self.stats = stats
+        self.stats["created"] = t0
     
     @abstractmethod
     def run(self):
@@ -23,10 +35,7 @@ class Client(metaclass=ABCMeta):
     
     @abstractmethod
     def log(self):
-        if self.priority is not None:
-            with open(self.filename, "w") as f:
-                # TODO: log deadline
-                pass
+        pass
     
     @trace(__file__)
     def wait_signal(self, signal_awaited: str) -> None:

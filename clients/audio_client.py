@@ -7,10 +7,16 @@ from multiprocessing.connection import Connection
 import time
 from utils import trace
 from Scheduler import Message
-from Client import Client
+from Client import Client, Stats
+from dataclasses import field
+from typing import Dict
+
+class AudioStats(Stats):
+    inference_start: float = field(default=None)
+    inference_end: float = field(default=None)
 
 class AudioRecognitionClient(Client):
-    def __init__(self, log_dir_name, batch, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None):
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
         self.t1 = None
         self.t2 = None
         self.t3 = None
@@ -68,9 +74,15 @@ class AudioRecognitionClient(Client):
 
         self.log()
         print(transcriptions)
-        return transcriptions
+        return self.stats
 
     def log(self):
+        self.stats["preprocess_start"] = self.t1
+        self.stats["preprocess_end"] = self.t2
+        self.stats["inference_start"] = self.t2
+        self.stats["inference_end"] = self.t3
+        self.stats["postprocess_start"] = self.t4
+        self.stats["postprocess_end"] = self.t5
         with open(self.filename, "w") as f:
             f.write(f"{self.t0} process created\n")
             f.write(f"{self.t1} preprocessing started\n")
