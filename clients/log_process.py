@@ -2,8 +2,11 @@ import os
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+from enum import Enum
 
-directory = '../log_image/'
+class FileType(Enum):
+    IMAGE = "IMAGE"
+    AUDIO = "AUDIO"
 
 def read_files_in_directory(directory:str,system_type:str):
     files = []
@@ -18,12 +21,12 @@ def read_files_in_directory(directory:str,system_type:str):
             break
     return files
 
-def extract_info_from_file(file_path):
+def extract_image_info_from_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
         process_info = {}
         process_info['file_path'] = file_path
-        for line in lines: # TODO: Parse audio log files
+        for line in lines:
             if line.strip():
                 if ' process created' in line:
                     process_info['process_created'] = float(line.split()[0])
@@ -67,22 +70,58 @@ def extract_info_from_file(file_path):
                     process_info['waiting_for_postprocessing_time'] = float(line.split()[0])
     return process_info
 
-def read_and_extract_info(directory:str,system_type:str):
+def extract_audio_info_from_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        process_info = {}
+        process_info['file_path'] = file_path
+        for line in lines:
+            if line.strip():
+                if ' process created' in line:
+                    process_info['process_created'] = float(line.split()[0])
+                elif ' preprocessing started' in line:
+                    process_info['preprocessing_started'] = float(line.split()[0])
+                elif ' preprocessing ended' in line:
+                    process_info['preprocessing_ended'] = float(line.split()[0])
+                elif ' inference ended' in line:
+                    process_info['inference_ended'] = float(line.split()[0])
+                elif ' postprocessing started' in line:
+                    process_info['postprocessing_started'] = float(line.split()[0])
+                elif ' postprocessing ended' in line:
+                    process_info['postprocessing_ended'] = float(line.split()[0])
+                elif 'process length' in line:
+                    process_info['process_length'] = float(line.split()[0])
+                elif 'preprocessing length' in line:
+                    process_info['preprocessing_length'] = float(line.split()[0])
+                elif 'inference length' in line:
+                    process_info['inference_length'] = float(line.split()[0])
+                elif 'postprrocessing length' in line:
+                    process_info['postprocessing_length'] = float(line.split()[0])
+                elif 'waiting for preprocessing time' in line:
+                    process_info['waiting_for_preprocessing_time'] = float(line.split()[0])
+                elif 'waiting for postprrocessing time' in line:
+                    process_info['waiting_for_postprocessing_time'] = float(line.split()[0])
+    return process_info
+
+def read_and_extract_info(directory:str,system_type:str,file_type:FileType=FileType.IMAGE):
     files = read_files_in_directory(directory,system_type)
     process_infos = []
     for file in files:
-        process_info = extract_info_from_file(file)
+        if file_type == FileType.IMAGE:
+            process_info = extract_image_info_from_file(file)
+        elif file_type == FileType.AUDIO:
+            process_info = extract_image_info_from_file(file)
         process_infos.append(process_info)
     return process_infos
 
-def draw_latency_for_each_system():
-    naive_process_infos = read_and_extract_info(directory,"naive")
+def draw_latency_for_each_system(file_type:FileType=FileType.IMAGE):
+    naive_process_infos = read_and_extract_info(directory,"naive",file_type)
     print("naive sequential all process time:",naive_process_infos[-1]['postprocessing_ended']-naive_process_infos[0]['process_created'])
 
-    non_coordinate_process_infos = read_and_extract_info(directory,"non-coordinate")
+    non_coordinate_process_infos = read_and_extract_info(directory,"non-coordinate",file_type)
     print("non-coordinate batch all process time:",non_coordinate_process_infos[-1]['postprocessing_ended']-non_coordinate_process_infos[0]['process_created'])
 
-    pipeline_process_infos = read_and_extract_info(directory,"pipeline")
+    pipeline_process_infos = read_and_extract_info(directory,"pipeline",file_type)
     print("pipeline all process time:",pipeline_process_infos[-1]['postprocessing_ended']-pipeline_process_infos[0]['process_created'])
 
     naive_latency = []
@@ -128,13 +167,13 @@ def draw_latency_for_each_system():
 
     plt.savefig("../log_image/latency.png")
 
-def draw_cpu_num_diff_latency():
-    CPU_MAX_NUM = 5
+def draw_cpu_num_diff_latency(file_type:FileType=FileType.IMAGE):
+    CPU_MAX_NUM = 6
     colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
     pipeline_process_infos = []
     for i in range(CPU_MAX_NUM):
-        pipeline_process_infos.append(read_and_extract_info(directory,"cpu_"+str(i+1)+"_pipeline"))
+        pipeline_process_infos.append(read_and_extract_info(directory,"cpu_"+str(i+1)+"_pipeline",file_type))
         print("cpu="+str(i)+": pipeline all process time:",pipeline_process_infos[i][-1]['postprocessing_ended']-pipeline_process_infos[i][0]['process_created'])
     
     pipeline_latency = []
@@ -168,6 +207,7 @@ def draw_cpu_num_diff_latency():
         plt.axhline(y=np.median(pipeline_latency[i]), linestyle = '--', color = colors[i])
 
     plt.savefig("../log_image/latency_CPU.png")
-    
+
 if __name__ == "__main__":
-    
+    directory = '../log_image/'
+    draw_cpu_num_diff_latency()

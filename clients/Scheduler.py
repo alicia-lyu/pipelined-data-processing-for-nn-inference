@@ -20,7 +20,8 @@ class CPUState(Enum):
     WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
 class Scheduler:
-    def __init__(self, parent_pipes: List[Connection], timeout_in_seconds: float, policy: Policy, cpu_tasks_cap: int = 4) -> None:
+    def __init__(self, parent_pipes: List[Connection], timeout_in_seconds: float, policy: Policy,
+     cpu_tasks_cap: int = 6) -> None:
         self.parent_pipes: List[Connection] = parent_pipes
         self.timeout: float = timeout_in_seconds
         if policy == Policy.FIFO:
@@ -88,4 +89,5 @@ class Scheduler:
 
     def slo_oriented():
         # TODO: Implement
+
         pass

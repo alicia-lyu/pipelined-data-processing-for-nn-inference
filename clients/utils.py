@@ -4,9 +4,15 @@ import time
 import random
 import argparse
 import multiprocessing
+from enum import Enum
 from multiprocessing import Event,Process
+import numpy as np
 
 PROCESS_CAP = 20
+
+class RandomPattern(Enum):
+    UNIFORM = "UNIFORM"
+    EXP = "EXP"
 
 def trace(path: str):
     file_name = os.path.basename(path)
@@ -17,10 +23,14 @@ def trace(path: str):
         return func
     return decorator
 
+def exp_random(min_val,max_val,lambda_val=1):
+    exponential_random_number = np.random.exponential(scale=1/lambda_val)
+    return min_val + (max_val - min_val) * (exponential_random_number / (1/lambda_val))
+
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int,  
                   data_paths: List[str], create_client_func: Callable, 
-                  log_path: str, stop_flag: Event = None) -> int:
+                  log_path: str, stop_flag: Event = None, random_patten:RandomPattern=RandomPattern.UNIFORM) -> int:
     
     processes: List[Process] = []
     blocked_time = 0
@@ -40,14 +50,17 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int,
         # A good number should be a little more than the median latency that we profiled,
         # which dependends on the min_interval and max_interval.
         # --- come out with a good formula to calculate the max_slo and min_slo based on min_interval and max_interval?
+        
         p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
         print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
         if p != None:
             processes.append(p)
         print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} data in its batch.")
-        interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
-        # TODO: Different data arrival distribution, mainly consider Poisson.
+        if random_patten == RandomPattern.UNIFORM:
+            interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
+        elif random_patten == RandomPattern.EXP:
+            interval = exp_random(min_interval, max_interval)
         time.sleep(interval)
 
     client_num = len(data_paths) // batch_size
