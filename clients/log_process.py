@@ -210,4 +210,5 @@ def draw_cpu_num_diff_latency(file_type:FileType=FileType.IMAGE):
 
 if __name__ == "__main__":
     directory = '../log_image/'
-    draw_cpu_num_diff_latency()
+    # draw_cpu_num_diff_latency()
+    draw_latency_for_each_system()

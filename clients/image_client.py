@@ -29,7 +29,8 @@ class TextRecognitionClient:
         self.t6 = None
         self.t7 = None
         self.t8 = None
-        self.send_signal((t0, priority)) # Send the start time and priority to the scheduler
+        if priority is not None:
+            self.send_signal((t0, priority)) # Send the start time and priority to the scheduler
     
     @trace(__file__)
     def preprocess(self):

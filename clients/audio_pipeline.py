@@ -4,7 +4,7 @@ from audio_client import AudioRecognitionClient
 from typing import List
 from utils import get_batch_args, trace, read_data_from_folder, AUDIO_FOLDER, batch_arrival
 from Scheduler import Scheduler, Policy
-import time, os
+import time, os, random
 
 PRIORITY_TO_LATENCY_GOAL = {
     1: 7.0,
@@ -14,8 +14,13 @@ PRIORITY_TO_LATENCY_GOAL = {
 }
 
 @trace(__file__)
-def create_client(log_dir_name:str, audio_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
-    client = AudioRecognitionClient(log_dir_name, audio_paths, process_id, child_pipe, t0)
+def create_client(log_dir_name: str, image_paths: List[str], process_id: int, 
+                  child_pipe: Connection, t0: float = None, include_priority = True) -> None:
+    if include_priority:
+        priority = random.choice(PRIORITY_TO_LATENCY_GOAL.keys())
+    else:
+        priority = None
+    client = AudioRecognitionClient(log_dir_name, audio_paths, process_id, child_pipe, t0, priority)
     p = Process(target=client.run)
     p.start()
     return p

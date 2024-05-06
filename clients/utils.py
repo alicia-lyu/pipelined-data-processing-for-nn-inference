@@ -67,10 +67,10 @@ def batch_arrival(min_interval: int, max_interval: int, batch_size: int,
         
         p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
-        print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
+        # print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
         if p != None:
             processes.append(p)
-        print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} data in its batch.")
+        # print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} data in its batch.")
         if random_patten == RandomPattern.UNIFORM:
             interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
         elif random_patten == RandomPattern.EXP:
