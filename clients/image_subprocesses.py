@@ -1,4 +1,5 @@
-from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+from utils import trace, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+from batch_arrive import batch_arrive
 from typing import List, Callable
 from image_client import TextRecognitionClient
 from multiprocessing import Process
@@ -23,13 +24,13 @@ def batch_subprocesses(min_interval: int, max_interval: int, batch_size: int, cr
     image_paths = read_data_from_folder(IMAGE_FOLDER, ".jpg")
     log_path = get_log_dir(ModelType.IMAGE)
     os.makedirs(log_path, exist_ok=True)
-    batch_arrival(min_interval, max_interval, batch_size, image_paths, create_client_func, log_path)
+    batch_arrive(min_interval, max_interval, batch_size, image_paths, create_client_func, log_path)
 
 def batch_sequential(min_interval: int, max_interval: int, batch_size: int, create_client_func: Callable):
     image_paths = read_data_from_folder(IMAGE_FOLDER, ".jpg")
     log_path = get_log_dir(ModelType.IMAGE)
     os.makedirs(log_path, exist_ok=True)
-    batch_arrival(min_interval, max_interval, batch_size, image_paths, create_client_func, log_path)
+    batch_arrive(min_interval, max_interval, batch_size, image_paths, create_client_func, log_path)
 
 if __name__ == "__main__":
 

@@ -1,18 +1,8 @@
 from typing import Callable, List
 import os
 import time
-import random
 import argparse
-import multiprocessing
 from enum import Enum
-from multiprocessing import Event, Process
-import numpy as np
-
-PROCESS_CAP = 20
-
-class RandomPattern(Enum):
-    UNIFORM = "UNIFORM"
-    EXP = "EXP"
 
 class ModelType(Enum):
     IMAGE = "IMAGE"
@@ -35,51 +25,6 @@ def get_log_dir(type: str) -> str:
     else:
         parent_dir = "../log_audio/"
     return parent_dir + type.value.lower() + "_" + str(start_time) + "/"
-
-def exp_random(min_val,max_val,lambda_val=1):
-    exponential_random_number = np.random.exponential(scale=1/lambda_val)
-    return min_val + (max_val - min_val) * (exponential_random_number / (1/lambda_val))
-
-@trace(__file__)
-def batch_arrival(min_interval: int, max_interval: int, batch_size: int,  
-                  data_paths: List[str], create_client_func: Callable, 
-                  log_path: str, stop_flag: Event = None, # type: ignore
-                  random_patten:RandomPattern=RandomPattern.UNIFORM) -> int:
-    
-    processes: List[Process] = []
-    blocked_time = 0
-    for i in range(0, len(data_paths), batch_size):
-    # for i in range(0, 10, batch_size):
-        batch = data_paths[i: i + batch_size]
-        client_id = i // batch_size
-        if stop_flag is not None and stop_flag.is_set():
-            print(batch_arrival.trace_prefix(), f"Ends earlier, sent {client_id} clients in total.")
-            return client_id
-        t0 = time.time()
-        # Calibrate t0 for naive sequential to include the blocked time by execution of previous processes
-        # In other systems, blocked_time should be close to 0, as it only involves a non-blocking behavior of starting the processes
-        while len(multiprocessing.active_children()) > PROCESS_CAP:
-            time.sleep(0.001)
-        # TODO: Generate a random SLO latency goal for each process.
-        # A good number should be a little more than the median latency that we profiled,
-        # which dependends on the min_interval and max_interval.
-        # --- come out with a good formula to calculate the max_slo and min_slo based on min_interval and max_interval?
-        
-        p = create_client_func(log_path, batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
-        blocked_time += time.time() - t0
-        # print(batch_arrival.trace_prefix(), f"Total blocked time: {blocked_time: .5f}")
-        if p != None:
-            processes.append(p)
-        # print(batch_arrival.trace_prefix(), f"Client {client_id} processes {len(batch)} data in its batch.")
-        if random_patten == RandomPattern.UNIFORM:
-            interval = random.uniform(min_interval, max_interval) # data_arrival_pattern(min_interval, max_interval, pattern: str)
-        elif random_patten == RandomPattern.EXP:
-            interval = exp_random(min_interval, max_interval)
-        time.sleep(interval)
-
-    client_num = len(data_paths) // batch_size
-    print(batch_arrival.trace_prefix(), f"Sent {client_num} clients in total.")
-    return client_num
 
 @trace(__file__)
 def get_batch_args() -> argparse.Namespace:

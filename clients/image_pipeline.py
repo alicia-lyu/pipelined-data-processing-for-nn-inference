@@ -2,7 +2,8 @@ from image_client import TextRecognitionClient
 from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
 from typing import List
-from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+from utils import trace, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+from batch_arrive import batch_arrive
 import random
 from Scheduler import Scheduler, Policy
 
@@ -40,8 +41,8 @@ def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int
         parent_pipes.append(parent_pipe)
         child_pipes.append(child_pipe)
 
-    batch_arrival_process = Process(
-        target = batch_arrival, 
+    batch_arrive_process = Process(
+        target = batch_arrive, 
         args = (
             min_interval, max_interval, batch_size, image_paths,
             lambda log_dir_name, batch, id, t0: create_client(
@@ -50,7 +51,7 @@ def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int
             log_path, stop_flag
         )
     )
-    batch_arrival_process.start()
+    batch_arrive_process.start()
     scheduler = Scheduler(parent_pipes, timeout, policy, cpu_tasks_cap, priority_to_latency_map)
     scheduler.run()
 

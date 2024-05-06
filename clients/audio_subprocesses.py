@@ -1,5 +1,6 @@
 from multiprocessing import Process
-from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, AUDIO_FOLDER
+from utils import trace, get_batch_args, read_data_from_folder, AUDIO_FOLDER
+from batch_arrive import batch_arrive
 from typing import List
 from audio_client import AudioRecognitionClient
 import time, os
@@ -28,6 +29,6 @@ if __name__ == "__main__":
     os.makedirs(log_path, exist_ok=True)
 
     if args.type == "non-coordinate-batch":
-        batch_arrival(args.min, args.max, args.batch_size, audio_paths, run_subprocess, log_path)
+        batch_arrive(args.min, args.max, args.batch_size, audio_paths, run_subprocess, log_path)
     elif args.type == "naive-sequential":
-        batch_arrival(args.min, args.max, args.batch_size, audio_paths, naive_sequential, log_path)
+        batch_arrive(args.min, args.max, args.batch_size, audio_paths, naive_sequential, log_path)
