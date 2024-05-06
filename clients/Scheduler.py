@@ -68,9 +68,10 @@ class Scheduler:
                         self.children_states[client_id] = CPUState.WAITING_FOR_CPU
                     elif signal_type == Message.FINISHED:
                         del self.children_states[client_id]
+                        del self.children_deadline_goals[client_id]
                         self.active_cpus -= 1
                     else:
-                        assert(isinstance(signal_type, tuple[float, int])) # (t0, priority)
+                        assert(isinstance(signal_type, tuple)) # (t0, priority)
                         t0, priority = signal_type
                         self.children_deadline_goals[client_id] = t0 + self.PRIORITY_TO_LATENCY_GOAL[priority]
                         
@@ -85,10 +86,10 @@ class Scheduler:
 
     @trace(__file__)
     def fifo(self) -> bool:
-        if len(self.children_states) == 0:
+        candidates = [key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU]
+        if len(candidates) == 0:
             return False
-        min_process_id = min(key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU)
-        min_process_id = int(min_process_id)
+        min_process_id = int(min(candidates))
         try:
             self.parent_pipes[min_process_id].send((min_process_id, Message.ALLOCATE_CPU))
         except ValueError:
@@ -99,16 +100,19 @@ class Scheduler:
             print(self.fifo.trace_prefix(), f"CPU is allocated to {min_process_id}.")
             return True
 
+    @trace(__file__)
     def slo_oriented(self):
-        if len(self.children_states) == 0:
+        max_delay = max(self.PRIORITY_TO_LATENCY_GOAL.values())
+        candidates = [child_id
+            for child_id, deadline in self.children_deadline_goals.items() 
+            if deadline - time.time() < max_delay and 
+            child_id in self.children_states and self.children_states[child_id] == CPUState.WAITING_FOR_CPU
+        ]
+        if len(candidates) == 0:
             return False
         # Prioritize the client with the earliest deadline
         # But consider a client as failed cause if it misses its deadline by max(PRIORITY_TO_LATENCY_GOAL)
-        max_delay = max(self.PRIORITY_TO_LATENCY_GOAL.values())
-        process_chosen = int(min(child_id
-            for child_id, deadline in self.children_deadline_goals.items() 
-            if time.time() - deadline < max_delay and self.children_states[child_id] == CPUState.WAITING_FOR_CPU
-        ))
+        process_chosen = int(min(candidates))
         try:
             self.parent_pipes[process_chosen].send((process_chosen, Message.ALLOCATE_CPU))
         except ValueError:

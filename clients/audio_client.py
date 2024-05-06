@@ -23,7 +23,8 @@ class AudioRecognitionClient:
         self.t3 = None
         self.t4 = None
         self.t5 = None
-        self.send_signal((t0, priority))
+        if priority is not None:
+            self.send_signal((t0, priority))
 
     def wait_signal(self, signal_awaited: str) -> None:
         if self.signal_pipe is None:  # Not coordinating multiple processes

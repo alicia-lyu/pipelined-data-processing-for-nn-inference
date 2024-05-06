@@ -3,7 +3,7 @@ from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
 from typing import List
 from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER
-import time, os
+import time, os, random
 from Scheduler import Scheduler, Policy
 
 PRIORITY_TO_LATENCY_GOAL = {
@@ -14,8 +14,13 @@ PRIORITY_TO_LATENCY_GOAL = {
 }
 
 @trace(__file__)
-def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
-    client = TextRecognitionClient(log_dir_name, image_paths, process_id, child_pipe, t0)
+def create_client(log_dir_name: str, image_paths: List[str], process_id: int, 
+                  child_pipe: Connection, t0: float = None, include_priority = True) -> None:
+    if include_priority:
+        priority = random.choice(list(PRIORITY_TO_LATENCY_GOAL.keys()))
+    else:
+        priority = None
+    client = TextRecognitionClient(log_dir_name, image_paths, process_id, child_pipe, t0, priority)
     p = Process(target=client.run)
     p.start()
     return p
@@ -46,7 +51,7 @@ if __name__ == "__main__":
                                     log_path, stop_flag))
     batch_arrival_process.start()
 
-    scheduler = Scheduler(parent_pipes, args.timeout, Policy.FIFO, cpu_tasks_cap=4, priority_to_latency_map=PRIORITY_TO_LATENCY_GOAL)
+    scheduler = Scheduler(parent_pipes, args.timeout, Policy.SLO_ORIENTED, 4, PRIORITY_TO_LATENCY_GOAL)
     ret = scheduler.run()
 
     if ret is True:
