@@ -14,6 +14,10 @@ class RandomPattern(Enum):
     UNIFORM = "UNIFORM"
     EXP = "EXP"
 
+class ModelType(Enum):
+    IMAGE = "IMAGE"
+    AUDIO = "AUDIO"
+
 def trace(path: str):
     file_name = os.path.basename(path)
     def decorator(func: Callable):
@@ -22,6 +26,15 @@ def trace(path: str):
         setattr(func, "trace_prefix", trace_prefix)
         return func
     return decorator
+
+def get_log_dir(type: str) -> str:
+    start_time = time.time()
+    assert(isinstance(type, ModelType))
+    if type == ModelType.IMAGE:
+        parent_dir = "../log_image/"
+    else:
+        parent_dir = "../log_audio/"
+    return parent_dir + type.value.lower() + "_" + str(start_time) + "/"
 
 def exp_random(min_val,max_val,lambda_val=1):
     exponential_random_number = np.random.exponential(scale=1/lambda_val)

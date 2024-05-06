@@ -1,7 +1,7 @@
 from image_client import TextRecognitionClient
 from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
-from typing import List
+from typing import List, Callable
 from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER
 import time, os
 from Scheduler import Scheduler, Policy
@@ -14,11 +14,21 @@ PRIORITY_TO_LATENCY_GOAL = {
 }
 
 @trace(__file__)
-def create_client(log_dir_name:str,image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
+def create_client(log_dir_name: str, image_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None,) -> None:
     client = TextRecognitionClient(log_dir_name, image_paths, process_id, child_pipe, t0)
     p = Process(target=client.run)
     p.start()
     return p
+
+def pipeline(min_interval: int, max_interval: int, batch_size: int, create_client_func: Callable, 
+             policy: Policy, cpu_tasks_cap: int, priority_to_latency_map: dict,):
+    batch_arrival_process = Process(target=batch_arrival, 
+                                    args=(min_interval, max_interval, batch_size, image_paths,
+                                    lambda log_dir_name, batch, id, t0: create_client(
+                                        log_dir_name, batch, id, child_pipes[id], t0
+                                        ), 
+                                    log_path, stop_flag))
+    batch_arrival_process.start()
 
 if __name__ == "__main__":
     stop_flag = Event() # stop the batch arrival when the scheduler stops
