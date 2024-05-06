@@ -2,41 +2,38 @@ from image_client import TextRecognitionClient
 from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
 from typing import List
-from utils import trace, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+from utils import trace, get_batch_args
 from batch_arrive import batch_arrive
 import random
 from Scheduler import Scheduler, Policy
-
-PRIORITY_TO_LATENCY_GOAL = {
-    1: 3.0,
-    2: 4.0,
-    3: 5.0,
-    4: 6.0
-}
+from Client import Client
+from audio_client import AudioRecognitionClient
+from image_subprocesses import get_params
 
 @trace(__file__)
-def create_client(log_dir_name: str, image_paths: List[str], process_id: int, 
-                  child_pipe: Connection, t0: float = None, include_priority = True) -> None:
+def create_client(data_paths: List[str], process_id: int, t0: float, # provided in batch_arrive
+                  log_dir_name: str, client_class: Client, # shared by all systems
+                  child_pipe: Connection, include_priority = True # specific to pipeline
+                  ) -> None:
     if include_priority:
-        priority = random.choice(list(PRIORITY_TO_LATENCY_GOAL.keys()))
+        priority = random.randint(1, 4)
     else:
         priority = None
-    client = TextRecognitionClient(log_dir_name, image_paths, process_id, child_pipe, t0, priority)
+    client = client_class(log_dir_name, data_paths, process_id, child_pipe, t0, priority)
     p = Process(target=client.run)
     p.start()
     return p
 
-def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int,
-             policy: Policy, cpu_tasks_cap: int, priority_to_latency_map: dict[int, float] = None):
-    assert((policy == Policy.SLO_ORIENTED) == (priority_to_latency_map is not None))
+def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int, data_type: str,
+             policy: Policy, cpu_tasks_cap: int):
     
-    image_paths = read_data_from_folder(IMAGE_FOLDER, ".jpg")
-    log_path = get_log_dir(ModelType.IMAGE)
+    client_class, data_paths, log_path, priority_map = get_params(data_type)
+    assert((policy == Policy.SLO_ORIENTED) == (priority_map is not None))
+    
     parent_pipes: List[Connection] = []
     child_pipes: List[Connection] = []
 
-
-    for i in range(len(image_paths) // args.batch_size):
+    for i in range(len(data_paths) // args.batch_size):
         parent_pipe,child_pipe = Pipe()
         parent_pipes.append(parent_pipe)
         child_pipes.append(child_pipe)
@@ -44,19 +41,20 @@ def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int
     batch_arrive_process = Process(
         target = batch_arrive, 
         args = (
-            min_interval, max_interval, batch_size, image_paths,
-            lambda log_dir_name, batch, id, t0: create_client(
-                log_dir_name, batch, id, child_pipes[id], 
-                t0, policy == Policy.SLO_ORIENTED), 
+            min_interval, max_interval, batch_size, data_paths,
+            lambda batch, id, t0: create_client(
+                batch, id, t0, log_path, client_class, 
+                child_pipes[id], include_priority=(policy == Policy.SLO_ORIENTED)
+            ),
             log_path, stop_flag
         )
     )
     batch_arrive_process.start()
-    scheduler = Scheduler(parent_pipes, timeout, policy, cpu_tasks_cap, priority_to_latency_map)
+    scheduler = Scheduler(parent_pipes, timeout, policy, cpu_tasks_cap, priority_map)
     scheduler.run()
 
 if __name__ == "__main__":
     stop_flag = Event() # stop the batch arrival when the scheduler stops
-
     args = get_batch_args()
-    pipeline(args.min, args.max, args.batch_size, args.timeout, args.policy, args.cpu_tasks_cap, PRIORITY_TO_LATENCY_GOAL)
+    pipeline(args.min, args.max, args.batch_size, args.timeout, args.data_type,
+             args.policy, args.cpu_tasks_cap)

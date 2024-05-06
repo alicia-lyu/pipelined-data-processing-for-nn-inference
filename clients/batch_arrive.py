@@ -14,7 +14,7 @@ class RandomPattern(Enum):
 @trace(__file__)
 def batch_arrive(min_interval: int, max_interval: int, batch_size: int,  
                   data_paths: List[str], create_client_func: Callable, 
-                  log_path: str, stop_flag: Event = None, # type: ignore
+                  stop_flag: Event = None, # type: ignore
                   random_patten:RandomPattern=RandomPattern.UNIFORM) -> int:
     
     processes: List[Process] = []
@@ -36,8 +36,7 @@ def batch_arrive(min_interval: int, max_interval: int, batch_size: int,
         t0 = time.time()
         # Calibrate t0 for naive sequential to include the blocked time by execution of previous processes
         # In other systems, blocked_time should be close to 0
-        p = create_client_func(log_path, batch, client_id, 
-                               t0 - blocked_time) # blocked time: should've started earlier
+        p = create_client_func(batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
         blocked_time += time.time() - t0
         if p is not None:
             processes.append(p)
