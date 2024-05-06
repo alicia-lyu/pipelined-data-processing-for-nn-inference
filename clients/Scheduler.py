@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Callable, List, Dict
 from multiprocessing.connection import Connection
 from utils import trace
-import select
+import select, sys, time
 
 class Policy(Enum):
     FIFO = "FIFO"
@@ -20,8 +20,13 @@ class CPUState(Enum):
     WAITING_FOR_CPU = "WAITING_FOR_CPU"
 
 class Scheduler:
-    def __init__(self, parent_pipes: List[Connection], timeout_in_seconds: float, policy: Policy,
-     cpu_tasks_cap: int = 6) -> None:
+    def __init__(self, 
+                 parent_pipes: List[Connection], 
+                 timeout_in_seconds: float, 
+                 policy: Policy,
+                 cpu_tasks_cap: int = 4,
+                 priority_to_latency_goal: Dict[int, float] = None
+     ) -> None:
         self.parent_pipes: List[Connection] = parent_pipes
         self.timeout: float = timeout_in_seconds
         if policy == Policy.FIFO:
@@ -31,7 +36,9 @@ class Scheduler:
 
         self.children_states: Dict[int, CPUState] = {}
         self.active_cpus = 0
-        self.CPU_TASKS_CAP = cpu_tasks_cap 
+        self.CPU_TASKS_CAP = cpu_tasks_cap
+        self.PRIORITY_TO_LATENCY_GOAL = priority_to_latency_goal
+        self.children_deadline_goals: Dict[int, float] = {}
     
     @trace(__file__)
     def run(self) -> bool:
@@ -62,6 +69,11 @@ class Scheduler:
                     elif signal_type == Message.FINISHED:
                         del self.children_states[client_id]
                         self.active_cpus -= 1
+                    else:
+                        assert(isinstance(signal_type, tuple[float, int])) # (t0, priority)
+                        t0, priority = signal_type
+                        self.children_deadline_goals[client_id] = t0 + self.PRIORITY_TO_LATENCY_GOAL[priority]
+                        
             else:
                 # Handle timeout
                 if len(self.children_states) != 0:
@@ -75,9 +87,9 @@ class Scheduler:
     def fifo(self) -> bool:
         if len(self.children_states) == 0:
             return False
+        min_process_id = min(key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU)
+        min_process_id = int(min_process_id)
         try:
-            min_process_id = min(key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU)
-            min_process_id = int(min_process_id)
             self.parent_pipes[min_process_id].send((min_process_id, Message.ALLOCATE_CPU))
         except ValueError:
             print(self.fifo.trace_prefix(), "No client to allocate the spare CPU. States:", self.children_states)
@@ -87,7 +99,22 @@ class Scheduler:
             print(self.fifo.trace_prefix(), f"CPU is allocated to {min_process_id}.")
             return True
 
-    def slo_oriented():
-        # TODO: Implement
-
-        pass
+    def slo_oriented(self):
+        if len(self.children_states) == 0:
+            return False
+        # Prioritize the client with the earliest deadline
+        # But consider a client as failed cause if it misses its deadline by max(PRIORITY_TO_LATENCY_GOAL)
+        max_delay = max(self.PRIORITY_TO_LATENCY_GOAL.values())
+        process_chosen = int(min(child_id
+            for child_id, deadline in self.children_deadline_goals.items() 
+            if time.time() - deadline < max_delay and self.children_states[child_id] == CPUState.WAITING_FOR_CPU
+        ))
+        try:
+            self.parent_pipes[process_chosen].send((process_chosen, Message.ALLOCATE_CPU))
+        except ValueError:
+            print(self.slo_oriented.trace_prefix(), "No client to allocate the spare CPU. States:", self.children_states)
+            return False
+        else:
+            self.children_states[process_chosen] = CPUState.CPU
+            print(self.slo_oriented.trace_prefix(), f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {self.children_deadline_goals[process_chosen] - time.time():5f} s.")
+            return True

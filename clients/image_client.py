@@ -1,6 +1,6 @@
-import os, cv2
+import os, cv2 # type: ignore
 import numpy as np
-import tritonclient.http as httpclient
+import tritonclient.http as httpclient # type: ignore
 import time
 import sys
 from multiprocessing.connection import Connection
@@ -11,7 +11,7 @@ from image_processing import detection_preprocessing, detection_postprocessing, 
 SAVE_INTERMEDIATE_IMAGES = False
 
 class TextRecognitionClient:
-    def __init__(self, log_dir_name, image_paths, process_id, signal_pipe: Connection = None, t0: float = None) -> None:
+    def __init__(self, log_dir_name, image_paths, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None) -> None:
         self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"
         self.image_paths = image_paths
         self.process_id = process_id
@@ -29,6 +29,7 @@ class TextRecognitionClient:
         self.t6 = None
         self.t7 = None
         self.t8 = None
+        self.send_signal((t0, priority)) # Send the start time and priority to the scheduler
     
     @trace(__file__)
     def preprocess(self):

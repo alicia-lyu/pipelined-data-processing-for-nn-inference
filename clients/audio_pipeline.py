@@ -6,6 +6,13 @@ from utils import get_batch_args, trace, read_data_from_folder, AUDIO_FOLDER, ba
 from Scheduler import Scheduler, Policy
 import time, os
 
+PRIORITY_TO_LATENCY_GOAL = {
+    1: 7.0,
+    2: 10.0,
+    3: 13.0,
+    4: 16.0
+}
+
 @trace(__file__)
 def create_client(log_dir_name:str, audio_paths: List[str], process_id: int, child_pipe: Connection, t0: float = None) -> None:
     client = AudioRecognitionClient(log_dir_name, audio_paths, process_id, child_pipe, t0)

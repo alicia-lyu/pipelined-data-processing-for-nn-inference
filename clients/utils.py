@@ -5,7 +5,7 @@ import random
 import argparse
 import multiprocessing
 from enum import Enum
-from multiprocessing import Event,Process
+from multiprocessing import Event, Process
 import numpy as np
 
 PROCESS_CAP = 20
@@ -30,7 +30,8 @@ def exp_random(min_val,max_val,lambda_val=1):
 @trace(__file__)
 def batch_arrival(min_interval: int, max_interval: int, batch_size: int,  
                   data_paths: List[str], create_client_func: Callable, 
-                  log_path: str, stop_flag: Event = None, random_patten:RandomPattern=RandomPattern.UNIFORM) -> int:
+                  log_path: str, stop_flag: Event = None, # type: ignore
+                  random_patten:RandomPattern=RandomPattern.UNIFORM) -> int:
     
     processes: List[Process] = []
     blocked_time = 0
@@ -76,6 +77,10 @@ def get_batch_args() -> argparse.Namespace:
     parser.add_argument("--batch_size", type=int, help="Batch size")
     parser.add_argument("--timeout", type=float, help="Scheduler timeout threhold")
     parser.add_argument("--type", type=str,default="pipeline", help="System type, naive-sequential/non-coordinate-batch/pipeline")
+    # parser.add_argument("--data-distribution", type=str, default="uniform", help="Data arrival distribution pattern, now support uniform or exponential") # TODO: Add poisson distribution
+    # # The following are only for pipeline system
+    # parser.add_argument("--cpu-parallelism", type=int, default=4, help="Number of CPU tasks can be run in parallel")
+    # parser.add_argument("--policy", type=str, default="SLO", help="Policy to schedule the tasks, now support FIFO or SLO-oriented")
 
     args = parser.parse_args()
 

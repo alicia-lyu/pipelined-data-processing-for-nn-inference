@@ -1,6 +1,6 @@
-import tritonclient.http as httpclient
-import soundfile as sf
-from transformers import Wav2Vec2Processor
+import tritonclient.http as httpclient # type: ignore
+import soundfile as sf # type: ignore
+from transformers import Wav2Vec2Processor # type: ignore
 import torch
 import sys, os
 from multiprocessing.connection import Connection
@@ -9,7 +9,7 @@ from utils import trace
 from Scheduler import Message
 
 class AudioRecognitionClient:
-    def __init__(self, log_dir_name, audio_paths, process_id, signal_pipe: Connection = None, t0: float = None):
+    def __init__(self, log_dir_name, audio_paths, process_id, signal_pipe: Connection = None, t0: float = None, priority: int = None):
         self.log_dir_name = log_dir_name
         self.audio_paths = audio_paths
         self.process_id = process_id
@@ -23,6 +23,7 @@ class AudioRecognitionClient:
         self.t3 = None
         self.t4 = None
         self.t5 = None
+        self.send_signal((t0, priority))
 
     def wait_signal(self, signal_awaited: str) -> None:
         if self.signal_pipe is None:  # Not coordinating multiple processes
