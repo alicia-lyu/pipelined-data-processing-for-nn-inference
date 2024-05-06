@@ -1,9 +1,9 @@
 from image_client import TextRecognitionClient
 from multiprocessing import Pipe, Process, Event
 from multiprocessing.connection import Connection
-from typing import List, Callable
-from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER
-import time, os, random
+from typing import List
+from utils import trace, batch_arrival, get_batch_args, read_data_from_folder, IMAGE_FOLDER, get_log_dir, ModelType
+import random
 from Scheduler import Scheduler, Policy
 
 PRIORITY_TO_LATENCY_GOAL = {
@@ -25,28 +25,14 @@ def create_client(log_dir_name: str, image_paths: List[str], process_id: int,
     p.start()
     return p
 
-def pipeline(min_interval: int, max_interval: int, batch_size: int, create_client_func: Callable, 
-             policy: Policy, cpu_tasks_cap: int, priority_to_latency_map: dict,):
-    batch_arrival_process = Process(target=batch_arrival, 
-                                    args=(min_interval, max_interval, batch_size, image_paths,
-                                    lambda log_dir_name, batch, id, t0: create_client(
-                                        log_dir_name, batch, id, child_pipes[id], t0
-                                        ), 
-                                    log_path, stop_flag))
-    batch_arrival_process.start()
-
-if __name__ == "__main__":
-    stop_flag = Event() # stop the batch arrival when the scheduler stops
-
-    args = get_batch_args()
-    image_paths = read_data_from_folder(IMAGE_FOLDER, ".jpg")
+def pipeline(min_interval: int, max_interval: int, batch_size: int, timeout: int,
+             policy: Policy, cpu_tasks_cap: int, priority_to_latency_map: dict[int, float] = None):
+    assert((policy == Policy.SLO_ORIENTED) == (priority_to_latency_map is not None))
     
+    image_paths = read_data_from_folder(IMAGE_FOLDER, ".jpg")
+    log_path = get_log_dir(ModelType.IMAGE)
     parent_pipes: List[Connection] = []
     child_pipes: List[Connection] = []
-
-    start_time = time.time()
-    log_path = "../log_image/"+args.type+"_"+str(start_time)+"/"
-    os.makedirs(log_path, exist_ok=True)
 
 
     for i in range(len(image_paths) // args.batch_size):
@@ -54,15 +40,22 @@ if __name__ == "__main__":
         parent_pipes.append(parent_pipe)
         child_pipes.append(child_pipe)
 
-    # Non-blocking (run at the same time with the scheduler): images arrive in batch
-    batch_arrival_process = Process(target=batch_arrival, 
-                                    args=(args.min, args.max, args.batch_size, image_paths,
-                                    lambda log_dir_name, batch, id, t0: create_client(log_dir_name, batch, id, child_pipes[id], t0), 
-                                    log_path, stop_flag))
+    batch_arrival_process = Process(
+        target = batch_arrival, 
+        args = (
+            min_interval, max_interval, batch_size, image_paths,
+            lambda log_dir_name, batch, id, t0: create_client(
+                log_dir_name, batch, id, child_pipes[id], 
+                t0, policy == Policy.SLO_ORIENTED), 
+            log_path, stop_flag
+        )
+    )
     batch_arrival_process.start()
+    scheduler = Scheduler(parent_pipes, timeout, policy, cpu_tasks_cap, priority_to_latency_map)
+    scheduler.run()
 
-    scheduler = Scheduler(parent_pipes, args.timeout, Policy.SLO_ORIENTED, 4, PRIORITY_TO_LATENCY_GOAL)
-    ret = scheduler.run()
+if __name__ == "__main__":
+    stop_flag = Event() # stop the batch arrival when the scheduler stops
 
-    if ret is True:
-        batch_arrival_process.terminate()
+    args = get_batch_args()
+    pipeline(args.min, args.max, args.batch_size, args.timeout, args.policy, args.cpu_tasks_cap, PRIORITY_TO_LATENCY_GOAL)
