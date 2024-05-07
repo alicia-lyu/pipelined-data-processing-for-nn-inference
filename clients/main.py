@@ -2,7 +2,7 @@ from Comparison import Comparison, SystemArgs, SystemType, Policy
 from utils import get_batch_args
 
 args = get_batch_args()
-min_interval, max_interval, batch_size = int(args.min), int(args.max), int(args.batch_size)
+min_interval, max_interval, batch_size = float(args.min), float(args.max), int(args.batch_size)
 data_type, random_pattern = Comparison.map_args_to_enum(args.data_type, args.random_pattern)
 comparison = Comparison(min_interval, max_interval, batch_size, data_type, random_pattern)
 system1 = SystemArgs(SystemType.NAIVE_SEQUENTIAL)

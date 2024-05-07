@@ -13,7 +13,6 @@ class DataType(Enum):
 
 class RandomPattern(Enum):
     UNIFORM = "uniform"
-    EXP = "exponential"
     POISSON = "poisson"
     
 
@@ -94,6 +93,8 @@ class Comparison:
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
         self.intervals = self.generate_random_intervals()
         self.priorities, self.deadlines = self.generate_deadlines(priority_map)
+        print(self.intervals)
+        print(self.deadlines)
         self.stats: Dict[str, List[Stats]] = {}
         
         print(self.trace_prefix, f"batch_size={batch_size}, client_num={self.client_num}, \
@@ -116,49 +117,26 @@ data_type={data_type}, priority_map={priority_map}")
         fig, axes = plt.subplots(1, 3, figsize=(30, 15))
         for i, (system_name, system_stats) in enumerate(self.stats.items()):
             times: Dict = {}
-            if isinstance(system_stats, ImageStats):
+            if isinstance(system_stats[0], ImageStats):
                 stages = [
-                    'Preprocess Wait',
-                    'Preprocess',
-                    'Inference',
-                    'Midprocessing Wait',
-                    'Midprocessing',
-                    'Inference2',
-                    'Postprocess Wait',
-                    'Postprocess'
+                    'Preprocess Wait', 'Preprocess', 'Inference',
+                    'Midprocessing Wait', 'Midprocessing', 'Inference2',
+                    'Postprocess Wait', 'Postprocess'
                 ]
-                colors = [
-                    'red',
-                    'yellow',
-                    'blue',
-                    'red',
-                    'yellow',
-                    'blue',
-                    'red',
-                    'yellow'
-                ]
+                colors = ['red', 'yellow', 'blue', 'red', 'yellow', 'blue', 'red', 'yellow']
             else:
                 stages = [
-                    'Preprocess Wait',
-                    'Preprocess',
-                    'Inference',
-                    'Postprocess Wait',
-                    'Postprocess'
+                    'Preprocess Wait', 'Preprocess', 'Inference', 'Postprocess Wait', 'Postprocess'
                 ]
-                colors = [
-                    'red',
-                    'yellow',
-                    'blue',
-                    'red',
-                    'yellow'
-                ]
+                colors = ['red', 'yellow', 'blue', 'red', 'yellow']
+
+            # Initialize times dictionary to store median times for each stage
+            times = {stage: [] for stage in stages}
             for priority in range(1, len(self.priority_map) + 1):
-                stage_times = {}
-                for stage in stages:
-                    stage_times[stage] = []
+                stage_times = {stage: [] for stage in stages}
                 for client_id, client_stats in enumerate(system_stats):
                     if self.priorities[client_id] == priority:
-                        if isinstance(system_stats, ImageStats):
+                        if isinstance(client_stats, ImageStats):
                             stage_times['Preprocess Wait'].append(client_stats.preprocess_start - client_stats.created)
                             stage_times['Preprocess'].append(client_stats.preprocess_end - client_stats.preprocess_start)
                             stage_times['Inference'].append(client_stats.inference_end - client_stats.inference_start)
@@ -174,14 +152,14 @@ data_type={data_type}, priority_map={priority_map}")
                             stage_times['Postprocess Wait'].append(client_stats.postprocess_start - client_stats.inference_end)
                             stage_times['Postprocess'].append(client_stats.postprocess_end - client_stats.postprocess_start)
                 for stage in stages:
-                    one_stage_times = stage_times[stage]
-                    times[stage].append(np.median(one_stage_times))
+                    times[stage].append(np.median(stage_times[stage]))
             # ----- Plot all priorities
+            print(times)
             priorities = list(range(1, len(self.priority_map) + 1))
-            bottom = np.zero(len(stages))
-            for i, (stage, time_all_priorities) in enumerate(times.items()):
+            bottom = np.zeros(len(priorities))
+            for j, (stage, time_all_priorities) in enumerate(times.items()):
                 time_all_priorities = np.array(time_all_priorities)
-                p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[i], label=stage)
+                p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[j], label=stage)
                 bottom += time_all_priorities
             axes[i].set_title(system_name)
             axes[i].legend(loc="upper right")
@@ -206,10 +184,8 @@ data_type={data_type}, priority_map={priority_map}")
         for i in range(self.client_num):
             if self.random_pattern == RandomPattern.UNIFORM:
                 interval = random.uniform(self.min_interval, self.max_interval)
-            elif self.random_pattern == RandomPattern.EXP:
-                interval = Comparison.exp_random(self.min_interval, self.max_interval)
             elif self.random_pattern == RandomPattern.POISSON:
-                interval = Comparison.poisson_random(self.min_interval, self.max_interval)
+                interval = Comparison.exp_random(self.min_interval, self.max_interval)
             intervals.append(interval)
         return intervals
     
@@ -226,15 +202,10 @@ data_type={data_type}, priority_map={priority_map}")
             interval_accumulator += self.intervals[i]
         return priorities, deadlines
     
-    @staticmethod 
-    def exp_random(min_val, max_val, lambda_val=1):
-        exponential_random_number = np.random.exponential(scale=1/lambda_val)
-        return min_val + (max_val - min_val) * (exponential_random_number / (1/lambda_val))
-
     @staticmethod
-    def poisson_random(min_val, max_val, lambda_val=1):
-        poisson_random_number = np.random.poisson(lam=lambda_val)
-        return min_val + (max_val - min_val) * (poisson_random_number / lambda_val)
+    def exp_random(min_val, max_val, rate=1):
+        scale = 1 / rate
+        return min_val + np.random.exponential(scale) * (max_val - min_val)
     
     @staticmethod
     def trace_prefix():
