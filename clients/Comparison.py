@@ -152,6 +152,8 @@ data_type={data_type}, priority_map={priority_map}")
                     'red',
                     'yellow'
                 ]
+            for stage in stages:
+                times[stage] = []
             for priority in range(1, len(self.priority_map) + 1):
                 stage_times = {}
                 for stage in stages:
@@ -178,7 +180,7 @@ data_type={data_type}, priority_map={priority_map}")
                     times[stage].append(np.median(one_stage_times))
             # ----- Plot all priorities
             priorities = list(range(1, len(self.priority_map) + 1))
-            bottom = np.zero(len(stages))
+            bottom = np.zeros(len(priorities))
             for i, (stage, time_all_priorities) in enumerate(times.items()):
                 time_all_priorities = np.array(time_all_priorities)
                 p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[i], label=stage)
