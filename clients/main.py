@@ -1,54 +1,42 @@
 from Comparison import Comparison, SystemArgs, SystemType, Policy
 from utils import get_batch_args
 
-args = get_batch_args()
-min_interval, max_interval, batch_size = float(args.min), float(args.max), int(args.batch_size)
-data_type, random_pattern = Comparison.map_args_to_enum(args.data_type, args.random_pattern)
-comparison = Comparison(min_interval, max_interval, batch_size, data_type, random_pattern)
-system1 = SystemArgs(SystemType.NON_COORDINATED_BATCH) 
-# Non_coordinated_batch should always be the first if you are running it, otherwise GPU will explode.
-system2 = SystemArgs(SystemType.NAIVE_SEQUENTIAL)
-system3 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 
-                     int(max(comparison.priority_map.values()) * 2))
-system4 = SystemArgs(SystemType.PIPELINE, Policy.FIFO, 1, 
-                     int(max(comparison.priority_map.values()) * 2))
-comparison.compare([system1, system3, system4])
+comparison_args_combinations = [
+    (0.15, 0.3, 2, "image", "poisson"),
+    (0.2, 0.4, 2, "image", "poisson"),
+    (0.3, 0.5, 2, "image", "poisson"),
+    (0.2, 0.4, 2, "image", "uniform"),
+    (1.5, 3, 2, "audio", "poisson"),
+    (3, 5, 2, "audio", "poisson"),
+    (5, 8, 2, "audio", "poisson"),
+    (3, 5, 2, "audio", "uniform")
+]
 
-# TODO: Run more experiments: A cartesian product of A and B (8 * 3 = 24)
+system_args_combinations = [
+    [
+        SystemArgs(SystemType.NON_COORDINATED_BATCH),
+        SystemArgs(SystemType.NAIVE_SEQUENTIAL),
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 10),
+        SystemArgs(SystemType.PIPELINE, Policy.FIFO, 1, 10)
+    ],
+    [
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 10),
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 2, 10),
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 4, 10),
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 10)
+    ],
+    [
+        SystemArgs(SystemType.NON_COORDINATED_BATCH),
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 10),
+        SystemArgs(SystemType.PIPELINE, Policy.FIFO, 8, 10)
+    ]
+]
 
-# A.1 min_interval = 0.15, max_interval = 0.3, batch_size = 2, data_type = "image", random_pattern = "poisson"
-# A.2 min_interval = 0.2, max_interval = 0.4, batch_size = 2, data_type = "image", random_pattern = "poisson"
-# A.3 min_interval = 0.3, max_interval = 0.5, batch_size = 2, data_type = "image", random_pattern = "poisson"
+def compare_systems(comparison_args, system_args):
+    comparison = Comparison(*comparison_args)
+    comparison.compare(system_args)
 
-# A.4 min_interval = 0.2, max_interval = 0.4, batch_size = 2, data_type = "image", random_pattern = "uniform"
-
-# A.5 min_interval = 1.5, max_interval = 3, batch_size = 2, data_type = "audio", random_pattern = "poisson"
-# A.6 min_interval = 3, max_interval = 5, batch_size = 2, data_type = "audio", random_pattern = "poisson"
-# A.7 min_interval = 5, max_interval = 8, batch_size = 2, data_type = "audio", random_pattern = "poisson"
-
-# A.8 min_interval = 3, max_interval = 5, batch_size = 2, data_type = "audio", random_pattern = "uniform"
-
-# B.1 (same as above)
-### system1 = SystemArgs(SystemType.NAIVE_SEQUENTIAL)
-### system2 = SystemArgs(SystemType.NON_COORDINATED_BATCH)
-### system3 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 
-###                      int(max(comparison.priority_map.values()) * 2))
-### system4 = SystemArgs(SystemType.PIPELINE, Policy.FIFO, 1, 
-###                      int(max(comparison.priority_map.values()) * 2))
-
-# B.2: Tune cpu_tasks_cap
-### system1 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 
-###                      int(max(comparison.priority_map.values()) * 2))
-### system2 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 2, 
-###                      int(max(comparison.priority_map.values()) * 2))
-### system3 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 4, 
-###                      int(max(comparison.priority_map.values()) * 2))
-### system4 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 
-###                      int(max(comparison.priority_map.values()) * 2))
-
-# B.3: Different policies --- change cpu_tasks_cap below to the best performing from B.2
-### system2 = SystemArgs(SystemType.NON_COORDINATED_BATCH)
-### system3 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 
-###                      int(max(comparison.priority_map.values()) * 2))
-### system4 = SystemArgs(SystemType.PIPELINE, Policy.FIFO, 1, 
-###                      int(max(comparison.priority_map.values()) * 2))
+if __name__ == "__main__":
+    for comparison_args in comparison_args_combinations:
+        for system_args in system_args_combinations:
+            compare_systems(comparison_args, system_args)
