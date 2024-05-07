@@ -57,35 +57,38 @@ triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 	docker build -t triton-image .
 	docker run --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
-test-image: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_client.py
+test_comparison: $(IMAGE_CLIENT1) $(AUDIO_CLIENT1) triton-server
+	cd $(BASEDIR)/clients && python ./main.oy --min_image=$(MIN_INTERVAL_IMAGE) --max_image=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE) --data_type="image" --random_pattern="poisson"
 
-test-image-non-coordinated-batch: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="non-coordinate-batch"
+# test-image: $(IMAGE_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./image_client.py
 
-test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="naive-sequential"
+# test-image-non-coordinated-batch: $(IMAGE_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="non-coordinate-batch"
 
-test-image-pipeline: $(IMAGE_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="pipeline"
+# test-image-naive-sequential: $(IMAGE_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./image_subprocesses.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="naive-sequential"
 
-image-all: $(IMAGE_CLIENT1) triton-server
-	make test-image-naive-sequential
-	make test-image-non-coordinated-batch
-	make test-image-pipeline
-	make log-process
+# test-image-pipeline: $(IMAGE_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./image_pipeline.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_IMAGE) --type="pipeline"
 
-log-process:
-	cd $(BASEDIR)/clients && python ./log_process.py
+# image-all: $(IMAGE_CLIENT1) triton-server
+# 	make test-image-naive-sequential
+# 	make test-image-non-coordinated-batch
+# 	make test-image-pipeline
+# 	make log-process
+
+# log-process:
+# 	cd $(BASEDIR)/clients && python ./log_process.py
 	
-test-audio: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_client.py
+# test-audio: $(AUDIO_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./audio_client.py
 
-test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="non-coordinate-batch"
+# test-audio-non-coordinated-batch: $(AUDIO_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="non-coordinate-batch"
 
-test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="naive-sequential"
+# test-audio-naive-sequential: $(AUDIO_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./audio_subprocesses.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="naive-sequential"
 
-test-audio-pipeline: $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./audio_pipeline.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="pipeline"
+# test-audio-pipeline: $(AUDIO_CLIENT1) triton-server
+# 	cd $(BASEDIR)/clients && python ./audio_pipeline.py --min=$(MIN_INTERVAL_AUDIO) --max=$(MAX_INTERVAL_AUDIO) --batch_size=$(BATCH_SIZE)  --timeout=$(TIMEOUT_AUDIO) --type="pipeline"

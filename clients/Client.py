@@ -7,14 +7,6 @@ from Scheduler import Message
 from dataclasses import dataclass, field
 from typing import Dict
 
-@dataclass
-class Stats:
-    created: float
-    preprocess_start: float = field(default=None)
-    preprocess_end: float = field(default=None)
-    postprocess_start: float = field(default=None)
-    postprocess_end: float = field(default=None)
-
 class Client(metaclass=ABCMeta):
     def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None):
         self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"

@@ -5,22 +5,39 @@ from typing import List, NamedTuple, Optional, Dict
 import os, math, random, numpy as np
 from Scheduler import Policy
 from System import System
-from Client import Stats
+from dataclasses import dataclass, field
+import matplotlib.pyplot as plt
 
 class DataType(Enum):
     IMAGE = "image"
     AUDIO = "audio"
 
 class RandomPattern(Enum):
-    UNIFORM = "UNIFORM"
-    EXP = "EXP"
-    POISSON = "POISSON"
+    UNIFORM = "uniform"
+    EXP = "exponential"
+    POISSON = "poisson"
     
 
 class SystemType(Enum):
     NAIVE_SEQUENTIAL = "naive-sequential"
     NON_COORDINATED_BATCH = "non-coordinated-batch"
     PIPELINE = "pipeline"
+
+@dataclass
+class Stats:
+    created: float = field(default=None)
+    preprocess_start: float = field(default=None)
+    preprocess_end: float = field(default=None)
+    inference_start: float = field(default=None)
+    inference_end: float = field(default=None)
+    postprocess_start: float = field(default=None)
+    postprocess_end: float = field(default=None)
+    
+class ImageStats(Stats):
+    midprocessing_start: float = field(default=None)
+    midprocessing_end: float = field(default=None)
+    inference2_start: float = field(default=None)
+    inference2_end: float = field(default=None)
 
 class SystemArgs(NamedTuple):
     system_type: SystemType
@@ -72,21 +89,96 @@ class Comparison:
             raise ValueError("Invalid data type")
         self.data_type = data_type
         self.data_paths = Comparison.read_data_from_folder(extension)
+        self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
         self.intervals = self.generate_random_intervals()
-        self.deadlines = self.generate_deadlines(priority_map)
+        self.priorities, self.deadlines = self.generate_deadlines(priority_map)
         self.stats: Dict[str, List[Stats]] = {}
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
+        self.dir_name = os.path.join(f"../log_{self.data_type.value}", f"{"__".join([str(system_args) for system_args in system_args_list])}")
+        os.mkdir(self.dir_name, exist_ok=True)
         for system_args in system_args_list:
-            system = System(self, system_args.system_type, system_args.policy, system_args.cpu_tasks_cap, system_args.lost_cause_threshold)
+            system = System(self, system_args)
             system_stats = system.run()
             self.stats[str(system_args)] = system_stats
         self.plot()
         
     def plot(self) -> None:
-        pass # TODO
+        # ----- Median time taken for each stage, grouped by priority, for all system types
+        fig, axes = plt.subplots(1, 3, figsize=(30, 15))
+        for i, (system_name, system_stats) in enumerate(self.stats.items()):
+            times: Dict = {}
+            if isinstance(system_stats, ImageStats):
+                stages = [
+                    'Preprocess Wait',
+                    'Preprocess',
+                    'Inference',
+                    'Midprocessing Wait',
+                    'Midprocessing',
+                    'Inference2',
+                    'Postprocess Wait',
+                    'Postprocess'
+                ]
+                colors = [
+                    'red',
+                    'yellow',
+                    'blue',
+                    'red',
+                    'yellow',
+                    'blue',
+                    'red',
+                    'yellow'
+                ]
+            else:
+                stages = [
+                    'Preprocess Wait',
+                    'Preprocess',
+                    'Inference',
+                    'Postprocess Wait',
+                    'Postprocess'
+                ]
+                colors = [
+                    'red',
+                    'yellow',
+                    'blue',
+                    'red',
+                    'yellow'
+                ]
+            for priority in range(1, len(self.priority_map) + 1):
+                stage_times = {}
+                for client_id, client_stats in enumerate(system_stats):
+                    if self.priorities[client_id] == priority:
+                        if isinstance(system_stats, ImageStats):
+                            stage_times['Preprocess Wait'].append(client_stats.preprocess_start - client_stats.created)
+                            stage_times['Preprocess'].append(client_stats.preprocess_end - client_stats.preprocess_start)
+                            stage_times['Inference'].append(client_stats.inference_end - client_stats.inference_start)
+                            stage_times['Midprocessing Wait'].append(client_stats.midprocessing_start - client_stats.inference_end)
+                            stage_times['Midprocessing'].append(client_stats.midprocessing_end - client_stats.midprocessing_start)
+                            stage_times['Inference2'].append(client_stats.inference2_end - client_stats.inference2_start)
+                            stage_times['Postprocess Wait'].append(client_stats.postprocess_start - client_stats.midprocessing_end)
+                            stage_times['Postprocess'].append(client_stats.postprocess_end - client_stats.postprocess_start)
+                        else:
+                            stage_times['Preprocess Wait'].append(client_stats.preprocess_start - client_stats.created)
+                            stage_times['Preprocess'].append(client_stats.preprocess_end - client_stats.preprocess_start)
+                            stage_times['Inference'].append(client_stats.inference_end - client_stats.inference_start)
+                            stage_times['Postprocess Wait'].append(client_stats.postprocess_start - client_stats.inference_end)
+                            stage_times['Postprocess'].append(client_stats.postprocess_end - client_stats.postprocess_start)
+                for stage in stages:
+                    one_stage_times = stage_times[stage]
+                    times[stage].append(np.median(one_stage_times))
+            # ----- Plot all priorities
+            priorities = list(range(1, len(self.priority_map) + 1))
+            bottom = np.zero(len(stages))
+            for i, (stage, time_all_priorities) in enumerate(times.items()):
+                time_all_priorities = np.array(time_all_priorities)
+                p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[i], label=stage)
+                bottom += time_all_priorities
+            axes[i].set_title(system_name)
+            axes[i].legend(loc="upper right")
+                
+        plt.savefig(os.path.join(self.dir_name, "stages.png"))
     
     def generate_random_intervals(self):
         intervals = []
@@ -103,13 +195,15 @@ class Comparison:
     def generate_deadlines(self, priority_map: dict):
         assert(len(self.intervals) == self.client_num)
         deadlines = []
+        priorities = []
         interval_accumulator = 0
         for i in range(self.client_num):
             priority = random.randint(1, len(priority_map))
+            priorities.append(priority)
             latency_goal = priority_map[priority]
-            deadlines[i] = interval_accumulator + latency_goal
+            deadlines.append(interval_accumulator + latency_goal)
             interval_accumulator += self.intervals[i]
-        return deadlines
+        return priorities, deadlines
     
     @staticmethod 
     def exp_random(min_val, max_val, lambda_val=1):

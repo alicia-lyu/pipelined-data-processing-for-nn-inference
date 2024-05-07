@@ -11,10 +11,6 @@ from Client import Client, Stats
 from dataclasses import field
 from typing import Dict
 
-class AudioStats(Stats):
-    inference_start: float = field(default=None)
-    inference_end: float = field(default=None)
-
 class AudioRecognitionClient(Client):
     def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
         self.t1 = None

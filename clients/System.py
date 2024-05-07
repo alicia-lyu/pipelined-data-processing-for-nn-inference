@@ -4,23 +4,21 @@ from typing import List, Dict
 from multiprocessing import Process, Pipe, Manager
 from multiprocessing.connection import Connection
 from Scheduler import Scheduler, Policy
-from Comparison import DataType, SystemType, Comparison
-from Client import Stats
-from image_client import ImageStats
-from audio_client import AudioStats
+from Comparison import DataType, SystemType, Comparison, SystemArgs
+from Comparison import Stats, ImageStats
 
 PROCESS_CAP = 20
 
 class System:
-    def __init__(self, comparison: Comparison, system_type: SystemType, 
-                 policy: Policy = None, cpu_tasks_cap: int = 4, lost_cause_threshold: int = 5,  # for pipeline
-                 ) -> None:
+    def __init__(self, comparison: Comparison, system_args: SystemArgs) -> None:
         self.comparison = comparison
         self.trace_prefix = f"*** {self.__class__.__name__}: "
-        self.log_path = System.get_log_dir(comparison.data_type)
+        self.log_path = self.get_log_dir()
         os.makedirs(self.log_path, exist_ok = True)
         self.clients: List[Process] = []
         self.clients_stats: Dict[int, Dict[str, float]] = {}
+        self.system_args = system_args
+        system_type, policy, cpu_tasks_cap, lost_cause_threshold = system_args
         
         # ----- System specific parameters
         if system_type == SystemType.NAIVE_SEQUENTIAL:
@@ -48,7 +46,7 @@ class System:
         batch_arrive_process = Process(target = self.batch_arrive)
         batch_arrive_process.start()
         if self.create_client_func == self.pipeline_client:
-            scheduler = Scheduler(self.parent_pipes, self.comparison.batch_size, self.policy, self.cpu_tasks_cap, self.comparison.deadlines, self.lost_cause_threshold)
+            scheduler = Scheduler(self.parent_pipes, max(self.comparison.priority_map) * 2, self.policy, self.cpu_tasks_cap, self.comparison.deadlines, self.lost_cause_threshold)
             scheduler.run()
         for p in self.clients:
             p.join()
@@ -114,7 +112,7 @@ class System:
         for client_id, stats in sorted(self.clients_stats.items(), key=lambda x: x[0]):
             if len(stats) == 7:
                 try:
-                    final_stats = AudioStats(
+                    final_stats = Stats(
                         created=stats["created"],
                         preprocess_start=stats["preprocess_start"],
                         preprocess_end=stats["preprocess_end"],
@@ -124,20 +122,19 @@ class System:
                         postprocess_end=stats["postprocess_end"]
                     )
                 except KeyError:
-                    raise ValueError("Invalid stats keys")
-                    
-            elif len(stats) == 11:
+                    raise ValueError("Invalid stats keys")    
+            if len(stats) == 11:
                 try:
                     final_stats = ImageStats(
                         created=stats["created"],
                         preprocess_start=stats["preprocess_start"],
                         preprocess_end=stats["preprocess_end"],
-                        detection_start=stats["detection_start"],
-                        detection_end=stats["detection_end"],
-                        cropping_start=stats["cropping_start"],
-                        cropping_end=stats["cropping_end"],
-                        recognition_start=stats["recognition_start"],
-                        recognition_end=stats["recognition_end"],
+                        inference_start=stats["inference_start"],
+                        inference_end=stats["inference_end"],
+                        midprocessing_start=stats["midprocessing_start"],
+                        midprocessing_end=stats["midprocessing_end"],
+                        inference2_start=stats["inference2_start"],
+                        inference2_end=stats["inference2_end"],
                         postprocess_start=stats["postprocess_start"],
                         postprocess_end=stats["postprocess_end"]
                     )
@@ -149,12 +146,5 @@ class System:
         assert(client_id == self.comparison.client_num - 1)
         return final_stats_list
     
-    @staticmethod
-    def get_log_dir(type: str) -> str:
-        start_time = time.time()
-        assert(isinstance(type, DataType))
-        if type == DataType.IMAGE:
-            parent_dir = "../log_image/"
-        else:
-            parent_dir = "../log_audio/"
-        return parent_dir + type.value.lower() + "_" + str(start_time) + "/"
+    def get_log_dir(self) -> str:
+        return self.comparison.dir_name + str(self.system_args)

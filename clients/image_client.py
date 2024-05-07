@@ -13,14 +13,6 @@ from typing import Dict
 
 SAVE_INTERMEDIATE_IMAGES = False
 
-class ImageStats(Stats):
-    detection_start: float = field(default=None)
-    detection_end: float = field(default=None)
-    cropping_start: float = field(default=None)
-    cropping_end: float = field(default=None)
-    recognition_start: float = field(default=None)
-    recognition_end: float = field(default=None)
-
 class TextRecognitionClient(Client):
     def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
         self.t1 = None
@@ -141,12 +133,12 @@ class TextRecognitionClient(Client):
     def log(self) -> bool:
         self.stats["preprocess_start"] = self.t1
         self.stats["preprocess_end"] = self.t2
-        self.stats["detection_start"] = self.t2
-        self.stats["detection_end"] = self.t3
-        self.stats["cropping_start"] = self.t4
-        self.stats["cropping_end"] = self.t5
-        self.stats["recognition_start"] = self.t5
-        self.stats["recognition_end"] = self.t6
+        self.stats["inference_start"] = self.t2
+        self.stats["inference_end"] = self.t3
+        self.stats["midprocessing_start"] = self.t4
+        self.stats["midprocessing_end"] = self.t5
+        self.stats["inference2_start"] = self.t5
+        self.stats["inference2_end"] = self.t6
         self.stats["postprocess_start"] = self.t7
         self.stats["postprocess_end"] = self.t8
         with open(self.filename, "w") as f:
