@@ -1,5 +1,5 @@
 from Comparison import Comparison, SystemArgs, SystemType, DataType, Policy, RandomPattern
-import time
+import argparse
 
 comparison_args_combinations = [
     (0.25, 0.25, 2, DataType.IMAGE, RandomPattern.POISSON),
@@ -34,12 +34,17 @@ def compare_systems(comparison_args, system_args):
     comparison.compare(system_args)
 
 if __name__ == "__main__":
-    for comparison_args in comparison_args_combinations:
-        for system_args in system_args_combinations:
-            ret = False
-            retries = 0
-            while ret == False and retries < 10:
-                ret = compare_systems(comparison_args, system_args)
-                retries += 1
-            if ret == False:
-                print(f"Failed to compare with {comparison_args} and {[str(system_arg) for system_arg in system_args]}")
+    parser = argparse.ArgumentParser(description="Set parameters for comparison")
+    parser.add_argument("--comparison_args", type=int, help="Comparison arguments index")
+    parser.add_argument("--system_args", type=int, help="System arguments index")
+    args = parser.parse_args()
+    if args.comparison_args is not None and args.system_args is not None:
+        comparison_args = comparison_args_combinations[args.comparison_args]
+        system_args = system_args_combinations[args.system_args]
+        ret = False
+        retries = 0
+        while ret == False and retries < 10:
+            ret = compare_systems(comparison_args, system_args)
+            retries += 1
+        if ret == False:
+            print(f"Failed to compare with {comparison_args} and {[str(system_arg) for system_arg in system_args]}")

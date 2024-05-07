@@ -57,8 +57,15 @@ triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 	docker build -t triton-image .
 	docker run --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
+COMPARISON_ARGS_INDICES := 1 2 3 4 5 6
+SYSTEM_ARGS_INDICES := 1 2 3
+
 test-comparison: $(IMAGE_CLIENT1) $(AUDIO_CLIENT1) triton-server
-	cd $(BASEDIR)/clients && python ./main.py --min=$(MIN_INTERVAL_IMAGE) --max=$(MAX_INTERVAL_IMAGE) --batch_size=$(BATCH_SIZE) --data_type="image" --random_pattern="uniform"
+	for i in $(COMPARISON_ARGS_INDICES); do \
+		for j in $(SYSTEM_ARGS_INDICES); do \
+			-cd $(BASEDIR)/clients && python main.py --comparison_args=$$i --system_args=$$j; \
+		done \
+	done
 
 # test-image: $(IMAGE_CLIENT1) triton-server
 # 	cd $(BASEDIR)/clients && python ./image_client.py
