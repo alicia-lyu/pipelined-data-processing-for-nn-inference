@@ -4,8 +4,8 @@ from enum import Enum
 from typing import List, NamedTuple, Optional, Dict
 import os, math, random, numpy as np # type: ignore
 from Scheduler import Policy
-from dataclasses import dataclass, field
-from StatsProcessor import StatsProcessor
+import time
+from StatsProcessor import StatsProcessor, Stats, ImageStats
 
 class DataType(Enum):
     IMAGE = "image"
@@ -20,23 +20,6 @@ class SystemType(Enum):
     NAIVE_SEQUENTIAL = "naive-sequential"
     NON_COORDINATED_BATCH = "non-coordinated-batch"
     PIPELINE = "pipeline"
-
-@dataclass
-class Stats:
-    created: float = field(default=None)
-    preprocess_start: float = field(default=None)
-    preprocess_end: float = field(default=None)
-    inference_start: float = field(default=None)
-    inference_end: float = field(default=None)
-    postprocess_start: float = field(default=None)
-    postprocess_end: float = field(default=None)
-
-@dataclass
-class ImageStats(Stats):
-    midprocessing_start: float = field(default=None)
-    midprocessing_end: float = field(default=None)
-    inference2_start: float = field(default=None)
-    inference2_end: float = field(default=None)
 
 class SystemArgs(NamedTuple):
     system_type: SystemType
@@ -75,6 +58,8 @@ class Comparison:
         self.max_interval = max_interval
         self.random_pattern = random_pattern
         self.trace_prefix = f"*** {self.__class__.__name__}: "
+        self.dir_name = f"../logs/comparison_{time.strftime('%H:%M:%S')}"
+        os.makedirs(self.dir_name, exist_ok=True)
         # ----- Data type specific parameters
         if data_type == DataType.IMAGE:
             self.client_class = TextRecognitionClient
@@ -87,7 +72,7 @@ class Comparison:
         else:
             raise ValueError("Invalid data type")
         self.data_type = data_type
-        self.data_paths = Comparison.read_data_from_folder(extension)
+        self.data_paths = Comparison.read_data_from_folder(extension)[:10] # TODO: change back
         self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
@@ -103,13 +88,12 @@ data_type={data_type}, priority_map={priority_map}")
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
         from System import System
-        self.dir_name = os.path.join(f"../log_{self.data_type.value}", "__".join([str(system_args) for system_args in system_args_list]))
-        os.makedirs(self.dir_name, exist_ok=True)
         print(self.trace_prefix, f"Comparing {len(system_args_list)} systems. Created directory {self.dir_name}")
         for system_args in system_args_list:
             system = System(self, system_args)
             system_stats = system.run()
             self.stats[str(system_args)] = system_stats
+        self.save_stats()
         self.plot()
         
     def plot(self) -> None:

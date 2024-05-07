@@ -4,9 +4,10 @@ from typing import List, Dict
 from multiprocessing import Process, Pipe, Manager
 from multiprocessing.connection import Connection
 from Scheduler import Scheduler
-from Comparison import SystemType, Comparison, SystemArgs, Stats, ImageStats, DataType
+from Comparison import SystemType, Comparison, SystemArgs, DataType
 from audio_client import AudioRecognitionClient
 from image_client import TextRecognitionClient
+from StatsProcessor import Stats, ImageStats
 
 PROCESS_CAP = 20
 
@@ -17,9 +18,9 @@ class System:
         self.trace_prefix = f"*** {self.__class__.__name__}: "
         
         system_type, policy, cpu_tasks_cap, lost_cause_threshold = system_args
-        print(self.trace_prefix, f"System type: {system_type}, Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
         
         self.log_path = self.get_log_dir()
+        print(self.trace_prefix, f"System type: {system_type}, Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}, log_path: {self.log_path}")
         os.makedirs(self.log_path, exist_ok = True)
         self.clients: List[Process] = []
         self.clients_stats: Dict[int, Dict[str, float]] = {}

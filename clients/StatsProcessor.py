@@ -1,73 +1,98 @@
 from typing import List, Dict
-from Comparison import Stats, ImageStats
-import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.pyplot as plt # type: ignore
+import numpy as np # type: ignore
 import os
+from dataclasses import dataclass, field
+
+@dataclass
+class Stats:
+    created: float = field(default=None)
+    preprocess_start: float = field(default=None)
+    preprocess_end: float = field(default=None)
+    inference_start: float = field(default=None)
+    inference_end: float = field(default=None)
+    postprocess_start: float = field(default=None)
+    postprocess_end: float = field(default=None)
+
+@dataclass
+class ImageStats(Stats):
+    midprocessing_start: float = field(default=None)
+    midprocessing_end: float = field(default=None)
+    inference2_start: float = field(default=None)
+    inference2_end: float = field(default=None)
 
 class StatsProcessor:
     def __init__(self, stats, deadlines):
-        self.stats: Dict[str, List[Stats]] = stats
-        self.dir_name = "../stats_" + "__".join(stats.keys())
-        self.deadlines = deadlines
+        if isinstance(stats, Dict):
+            self.stats: Dict[str, List[Stats]] = stats
+        elif isinstance(stats, List): # list of filenames
+            for filename in stats:
+                with open(filename, 'r') as f:
+                    for line in f.readlines():
+                        client_id = line.split()[0]
+                        client_stats = line.split()[1:]
+                        if len(client_stats) == 7:
+                            stats = Stats(
+                                process_created = float(client_stats[0]),
+                                preprocessing_start = float(client_stats[1]),
+                                preprocessing_end = float(client_stats[2]),
+                                inference_start = float(client_stats[3]),
+                                inference_end = float(client_stats[4]),
+                                postprocessing_start = float(client_stats[5]),
+                                postprocessing_end = float(client_stats[6])
+                            )
+                            self.stats[filename].append(stats)
+                        elif len(client_stats) == 11:
+                            stats = Stats(
+                                process_created = float(client_stats[0]),
+                                preprocessing_start = float(client_stats[1]),
+                                preprocessing_end = float(client_stats[2]),
+                                inference_start = float(client_stats[3]),
+                                inference_end = float(client_stats[4]),
+                                midprocessing_start = float(client_stats[5]),
+                                midprocessing_end = float(client_stats[6]),
+                                inference2_start = float(client_stats[7]),
+                                inference2_end = float(client_stats[8]),
+                                postprocessing_start = float(client_stats[9]),
+                                postprocessing_end = float(client_stats[10])
+                            )
+                            self.stats[filename].append(stats)
+                        else:
+                            raise ValueError(f"Invalid stats length {len(client_stats)} at {filename}: {client_stats}")
+                    f.close()
+        else:
+            raise ValueError(f"Stats {stats} not supported")
         
-    def __init__(self, stats_file_names: List[str], deadline_file_name: str):
-        for filename in stats_file_names:
-            with open(filename, 'r') as f:
+        self.dir_name = "../stats_" + "__".join(stats.keys())
+        os.makedirs(self.dir_name, exist_ok=True)
+        
+        if isinstance(deadlines, List):
+            self.deadlines = deadlines
+        elif isinstance(deadlines, str):
+            self.deadlines = [0 for _ in range(len(self.stats.values()[0]))]
+            with open(deadlines, 'r') as f:
                 for line in f.readlines():
-                    client_stats = line.split()
-                    if len(client_stats) == 7:
-                        stats = Stats(
-                            process_created = float(client_stats[0]),
-                            preprocessing_start = float(client_stats[1]),
-                            preprocessing_end = float(client_stats[2]),
-                            inference_start = float(client_stats[3]),
-                            inference_end = float(client_stats[4]),
-                            postprocessing_start = float(client_stats[5]),
-                            postprocessing_end = float(client_stats[6])
-                        )
-                        self.stats[filename].append(stats)
-                    elif len(client_stats) == 11:
-                        stats = Stats(
-                            process_created = float(client_stats[0]),
-                            preprocessing_start = float(client_stats[1]),
-                            preprocessing_end = float(client_stats[2]),
-                            inference_start = float(client_stats[3]),
-                            inference_end = float(client_stats[4]),
-                            midprocessing_start = float(client_stats[5]),
-                            midprocessing_end = float(client_stats[6]),
-                            inference2_start = float(client_stats[7]),
-                            inference2_end = float(client_stats[8]),
-                            postprocessing_start = float(client_stats[9]),
-                            postprocessing_end = float(client_stats[10])
-                        )
-                        self.stats[filename].append(stats)
-                    else:
-                        raise ValueError(f"Invalid stats length {len(client_stats)} at {filename}: {client_stats}")
+                    client_id, priority, deadline = line.split()
+                    self.deadlines[int(client_id)] = float(deadline)
                 f.close()
-        self.deadlines = [0 for _ in range(len(self.stats[filename]))]
-        with open(deadline_file_name, 'r') as f:
-            for line in f.readlines():
-                client_id, priority, deadline = line.split()
-                self.deadlines[int(client_id)] = float(deadline)
-            f.close()
-
+        
     def plot_batches(self):
         latencies = {}
-        for system, system_stats in self.stats:
+        for system, system_stats in self.stats.items():
             latencies[system] = []
             for stats in system_stats:
-                latencies[system].append(stats.postprocessing_end - stats.process_created)
+                latencies[system].append(stats.postprocess_end - stats.created)
         fig, ax = plt.subplots()
         batches = range(len(latencies[system]))
         colors = ['r', 'g', 'b', 'y', 'm']
         for i, (system, latency) in enumerate(latencies.items()):
             ax.plot(batches, latency, label=system, color=colors[i])
-            ax.hline(np.mean(latency), linestyle='--', color=colors[i])
+            ax.axhline(np.mean(latency), linestyle='--', color=colors[i])
         ax.plot(batches, self.deadlines, label='Deadline', color='k')
         
-        ax.title('Latency Comparison')
-        ax.xlabel('# Request')
-        ax.ylabel('Latency (s)')
+        ax.set_title('Latency Comparison')
+        ax.set_xlabel('# Request')
+        ax.set_ylabel('Latency (s)')
         fig.savefig(self.dir_name + "/latency.png")
         
     def plot_stages(self) -> None:
@@ -121,5 +146,5 @@ class StatsProcessor:
                 bottom += time_all_priorities
             axes[i].set_title(system_name)
             axes[i].legend(loc="upper right")
-                
+            
         plt.savefig(os.path.join(self.dir_name, "stages.png"))
