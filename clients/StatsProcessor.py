@@ -63,7 +63,7 @@ class StatsProcessor:
         else:
             raise ValueError(f"Stats {stats} not supported")
         
-        self.dir_name = "../stats_" + "__".join(stats.keys())
+        self.dir_name = os.path.join("../stats_", "__".join(stats.keys()))
         os.makedirs(self.dir_name, exist_ok=True)
         
         if isinstance(deadlines, List):
@@ -90,8 +90,13 @@ class StatsProcessor:
         else:
             raise ValueError(f"Priority map {priority_map} not supported")
         
-        if priorities is None:
+        if priorities is not None:
             self.priorities = priorities
+            
+        # print(self.stats)
+        # print(self.deadlines)
+        # print(self.priorities)
+        # print(self.priority_map)
         
     def plot_batches(self):
         latencies = {}

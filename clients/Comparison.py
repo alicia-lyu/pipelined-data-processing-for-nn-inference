@@ -64,7 +64,7 @@ class Comparison:
         if data_type == DataType.IMAGE:
             self.client_class = TextRecognitionClient
             extension = ".jpg"
-            priority_map = PRIORITY_TO_LATENCY_IMAGE # TODO: Provide more priority map choices
+            priority_map = PRIORITY_TO_LATENCY_IMAGE
         elif data_type == DataType.AUDIO:
             self.client_class = AudioRecognitionClient
             extension = ".mp3"
@@ -72,7 +72,7 @@ class Comparison:
         else:
             raise ValueError("Invalid data type")
         self.data_type = data_type
-        self.data_paths = Comparison.read_data_from_folder(extension)[:10] # TODO: change back
+        self.data_paths = Comparison.read_data_from_folder(extension)
         self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
