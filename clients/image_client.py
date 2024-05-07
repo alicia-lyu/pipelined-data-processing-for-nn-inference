@@ -27,7 +27,7 @@ class TextRecognitionClient(Client):
     @trace(__file__)
     def preprocess(self):
         self.t1 = time.time()
-        print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        # print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         raw_images = []
         for path in self.batch:
             raw_images.append(cv2.imread(path))
@@ -37,7 +37,7 @@ class TextRecognitionClient(Client):
             preprocessed_images.append(detection_preprocessing(raw_image)[0]) # (1, 480, 640, 3), 1 being batch size
         preprocessed_images = np.stack(preprocessed_images,axis=0) # matching dimension: (batch_size, 480, 640, 3)
         self.t2 = time.time()
-        print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
+        # print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish, DETECTION INFERENCE start at {time.strftime('%H:%M:%S')}")
         return preprocessed_images
 
     @trace(__file__)
@@ -50,13 +50,13 @@ class TextRecognitionClient(Client):
             model_name="text_detection", inputs=[detection_input]
         )
         self.t3 = time.time()
-        print(self.detect.trace_prefix(), f"Process {self.process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.detect.trace_prefix(), f"Process {self.process_id}: DETECTION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
         return detection_response
 
     @trace(__file__)
     def crop(self, detection_response, preprocessed_images):
         self.t4 = time.time()
-        print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
+        # print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING start at {time.strftime('%H:%M:%S.')}")
 
         # Depending on parent to schedule the first process, i.e., the process that has waited the longest
         # FIFO policy. Assuming there is no priority among processes
@@ -67,10 +67,10 @@ class TextRecognitionClient(Client):
             self.t6 = time.time()
             self.t7 = time.time()
             self.t8 = time.time()
-            print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING returns no image, end early at {time.strftime('%H:%M:%S.')}")
+            # print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING returns no image, end early at {time.strftime('%H:%M:%S.')}")
             return
         self.t5 = time.time()
-        print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
+        # print(self.crop.trace_prefix(), f"Process {self.process_id}: CROPPING finish, RECOGNITION INFERENCE start at {time.strftime('%H:%M:%S.%f')}")
         return cropped_images
 
     @trace(__file__)
@@ -84,15 +84,15 @@ class TextRecognitionClient(Client):
             model_name="text_recognition", inputs=[recognition_input]
         )
         self.t6 = time.time()
-        print(self.recognize.trace_prefix(), f"Process {self.process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.recognize.trace_prefix(), f"Process {self.process_id}: RECOGNITION INFERENCE finish at {time.strftime('%H:%M:%S.')}")
         return recognition_response
 
     @trace(__file__)
     def postprocess(self, recognition_response):
-        print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        # print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t7 = time.time()
         final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
-        print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         self.t8 = time.time()
         return final_text
     
@@ -122,7 +122,7 @@ class TextRecognitionClient(Client):
         #### POSTPROCESSING (CPU)
         self.wait_signal(Message.ALLOCATE_CPU)
         final_text = self.postprocess(recognition_response)
-        print(final_text)
+        print(self.process_id, final_text)
         self.send_signal(Message.FINISHED)
 
         self.log()
@@ -167,7 +167,7 @@ class TextRecognitionClient(Client):
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        print("Not pipelined!")
+        # print("Not pipelined!")
         batch = [
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2617.JPG",
             "../../datasets/SceneTrialTrain/lfsosa_12.08.2002/IMG_2618.JPG"
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         log_path = sys.argv[1]
         process_id = sys.argv[2]
         batch = sys.argv[3:]
-        print("Pipeline batch size: "+str(len(batch))+"!")
+        # print("Pipeline batch size: "+str(len(batch))+"!")
 
     client = TextRecognitionClient(log_path, batch, process_id)
     final_text = client.run()

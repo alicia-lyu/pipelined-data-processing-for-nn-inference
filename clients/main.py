@@ -2,18 +2,17 @@ from Comparison import Comparison, SystemArgs, SystemType, DataType, Policy, Ran
 import time
 
 comparison_args_combinations = [
-    (1, 1, 2, DataType.IMAGE, RandomPattern.POISSON),
-    (0.5, 0.5, 2, DataType.IMAGE, RandomPattern.POISSON),
-    (0.15, 0.3, 2, DataType.IMAGE, RandomPattern.UNIFORM),
+    (0.25, 0.25, 2, DataType.IMAGE, RandomPattern.POISSON),
+    (0.15, 0.15, 2, DataType.IMAGE, RandomPattern.POISSON),
+    (0.1, 0.2, 2, DataType.IMAGE, RandomPattern.UNIFORM),
     (3, 3, 2,  DataType.AUDIO, RandomPattern.POISSON),
     (1.5, 1.5, 2,  DataType.AUDIO, RandomPattern.POISSON),
-    (3, 5, 2, DataType.AUDIO, RandomPattern.UNIFORM)
+    (1.5, 3, 2, DataType.AUDIO, RandomPattern.UNIFORM)
 ]
 
 system_args_combinations = [
     [
         SystemArgs(SystemType.NON_COORDINATED_BATCH),
-        SystemArgs(SystemType.NAIVE_SEQUENTIAL),
         SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 10),
         SystemArgs(SystemType.PIPELINE, Policy.FIFO, 1, 10)
     ],
@@ -44,4 +43,3 @@ if __name__ == "__main__":
                 retries += 1
             if ret == False:
                 print(f"Failed to compare with {comparison_args} and {[str(system_arg) for system_arg in system_args]}")
-            time.sleep(20)

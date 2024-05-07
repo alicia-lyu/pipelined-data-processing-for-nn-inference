@@ -21,7 +21,7 @@ class AudioRecognitionClient(Client):
 
     @trace(__file__)
     def audio_preprocess(self, processor: Wav2Vec2Processor):
-        print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        # print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t1 = time.time()
         audios = []
         for path in self.batch:
@@ -35,19 +35,19 @@ class AudioRecognitionClient(Client):
         reduced_dim = [tensor[0] for tensor in padded_data]
         stacked_data = torch.stack(reduced_dim, dim=0)
         self.t2 = time.time()
-        print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.audio_preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         return stacked_data
 
     @trace(__file__)
     def audio_postprocess(self, results, processor: Wav2Vec2Processor):
-        print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
+        # print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING start at {time.strftime('%H:%M:%S.')}")
         self.t4 = time.time()
         transcriptions = []
         predicted_ids = torch.argmax(torch.tensor(results.as_numpy("output")), dim=-1)
         for prediction in predicted_ids:
             transcriptions.append(processor.decode(prediction))
         self.t5 = time.time()
-        print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.audio_postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         return transcriptions
 
     @trace(__file__)
@@ -57,19 +57,19 @@ class AudioRecognitionClient(Client):
         preprocessed_audios = self.audio_preprocess(processor)
         self.send_signal(Message.RELINQUISH_CPU)
 
-        print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE start at {time.strftime('%H:%M:%S.')}")
+        # print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE start at {time.strftime('%H:%M:%S.')}")
         infer_inputs = [httpclient.InferInput("input", preprocessed_audios.shape, datatype="FP32")]
         infer_inputs[0].set_data_from_numpy(preprocessed_audios.numpy())
         self.t3 = time.time()
         results = self.triton_client.infer(model_name="speech_recognition", inputs=infer_inputs)
-        print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE finish at {time.strftime('%H:%M:%S.')}")
+        # print(self.run.trace_prefix(), f"Process {self.process_id}: INFERENCE finish at {time.strftime('%H:%M:%S.')}")
 
         self.wait_signal(Message.ALLOCATE_CPU)
         transcriptions = self.audio_postprocess(results, processor)
         self.send_signal(Message.FINISHED)
 
         self.log()
-        print(transcriptions)
+        print(self.process_id, transcriptions)
         return self.stats
 
     def log(self):
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     ]
 
     if len(sys.argv) < 2:
-        print("Not pipelined!")
+        # print("Not pipelined!")
         start_time = time.time()
         log_path = "../log_audio/test_"+str(start_time)+"/"
         process_id = 0
@@ -113,8 +113,8 @@ if __name__ == "__main__":
         log_path = sys.argv[1]
         process_id = sys.argv[2]
         batch = sys.argv[3:]
-        print("Pipeline batch size: "+str(len(batch))+"!")
+        # print("Pipeline batch size: "+str(len(batch))+"!")
     
     client = AudioRecognitionClient(log_path, batch, process_id)
     transcriptions = client.run()
-    print(transcriptions)
+    # print(transcriptions)

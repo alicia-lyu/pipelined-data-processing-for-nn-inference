@@ -62,7 +62,6 @@ class StatsProcessor:
                     f.close()
         else:
             raise ValueError(f"Stats {stats} not supported")
-        
         self.dir_name = os.path.join(base_dir, "__".join(stats.keys()))
         os.makedirs(self.dir_name, exist_ok=True)
         
@@ -92,11 +91,14 @@ class StatsProcessor:
         
         if priorities is not None:
             self.priorities = priorities
-            
+        
+        self.client_num = len(self.priorities)
+        
         self.latency_goals = [self.priority_map[
                 self.priorities[client_id]
             ] for client_id in range(len(self.priorities))]
-            
+        
+        print(f"Plotting in dir {self.dir_name}.")
         # print(self.stats)
         # print(self.deadlines)
         # print(self.priorities)
@@ -114,13 +116,20 @@ class StatsProcessor:
         for i, (system, latency) in enumerate(latencies.items()):
             ax.plot(batches, latency, label=system, color=colors[i])
             ax.axhline(np.mean(latency), linestyle='--', color=colors[i])
-        ax.plot(batches, self.latency_goals, label='Deadline', color='k')
+        failed_goal = 0
+        for client_id, latency_goal in enumerate(self.latency_goals):
+            for system, latency in latencies.items():
+                if latency[client_id] > latency_goal:
+                    failed_goal += 1
+        if failed_goal > self.client_num * 0.05: # Don't plot if only few didn't achieve goal
+            print(f"Failed goal: {failed_goal} / {len(latencies.items()) * self.client_num}")
+            ax.plot(batches, self.latency_goals, label='Deadline', color='k')
         
         ax.set_title('Latency Comparison')
         ax.set_xlabel('# Request')
         ax.set_ylabel('Latency (s)')
         ax.legend()
-        fig.savefig(self.dir_name + "/latency.png")
+        fig.savefig(os.path.join(self.dir_name, "latency.png"))
         
     def plot_stages(self) -> None:
         # ----- Median time taken for each stage, grouped by priority, for all system types

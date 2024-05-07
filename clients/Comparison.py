@@ -96,7 +96,6 @@ data_type={data_type}, priority_map={priority_map}")
             if len(system_stats) < self.client_num:
                 print(self.trace_prefix, f"{str(system_args)} failed to collect stats from all clients!")
                 return False
-            time.sleep(20)
         for system_name, system_stats in self.stats.items():
             print(self.trace_prefix, f"{system_name} took {system_stats[-1].postprocess_end - system_stats[0].created} s in total")
         self.save_stats()

@@ -61,7 +61,7 @@ class Scheduler:
                 for ready_pipe in ready[0]:
                     client_id, signal_type = ready_pipe.recv()
                     client_id = int(client_id)
-                    print(self.trace_prefix, f"Received signal {signal_type} from {client_id}", "Active CPUs: "+str(self.active_cpus))#, hashmap_stage, hashmap_state)
+                    # print(self.trace_prefix, f"Received signal {signal_type} from {client_id}", "Active CPUs: "+str(self.active_cpus))#, hashmap_stage, hashmap_state)
                     # A child client relinquishes CPU
                     if signal_type == Message.RELINQUISH_CPU:
                         self.children_states[client_id] = CPUState.GPU
@@ -100,17 +100,17 @@ class Scheduler:
             return False
         else:
             self.children_states[min_process_id] = CPUState.CPU
-            print(self.trace_prefix, f"CPU is allocated to {min_process_id}.")
+            # print(self.trace_prefix, f"CPU is allocated to {min_process_id}.")
             return True
 
     def slo_oriented(self):
         
         def get_remaining_time(deadline):
-            return time.time() - (self.start_time + deadline)
+            return self.start_time + deadline - time.time()
         
         candidates = [child_id
             for child_id, deadline in enumerate(self.deadlines)
-            if get_remaining_time(deadline) < self.lost_cause_threshold and 
+            if - get_remaining_time(deadline) < self.lost_cause_threshold and 
             child_id in self.children_states and self.children_states[child_id] == CPUState.WAITING_FOR_CPU
         ]
         if len(candidates) == 0:
@@ -121,7 +121,7 @@ class Scheduler:
                 print(self.trace_prefix, f"No other candidates but {len(candidates)} lost causes.")
         # Prioritize the client with the earliest deadline
         # But consider a client as failed cause if it misses its deadline by max(PRIORITY_TO_LATENCY_GOAL)
-        process_chosen = int(min(candidates))
+        process_chosen = int(min(candidates, key = lambda candidate: get_remaining_time(self.deadlines[candidate])))
         try:
             self.parent_pipes[process_chosen].send((process_chosen, Message.ALLOCATE_CPU))
         except ValueError:
