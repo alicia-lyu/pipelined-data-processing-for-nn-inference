@@ -154,6 +154,8 @@ data_type={data_type}, priority_map={priority_map}")
                 ]
             for priority in range(1, len(self.priority_map) + 1):
                 stage_times = {}
+                for stage in stages:
+                    stage_times[stage] = []
                 for client_id, client_stats in enumerate(system_stats):
                     if self.priorities[client_id] == priority:
                         if isinstance(system_stats, ImageStats):

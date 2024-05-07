@@ -9,4 +9,4 @@ system1 = SystemArgs(SystemType.NAIVE_SEQUENTIAL)
 system2 = SystemArgs(SystemType.NON_COORDINATED_BATCH)
 system3 = SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 4, 
                      int(max(comparison.priority_map.values()) * 2))
-comparison.compare([system1, system2, system3])
+comparison.compare([system3])
