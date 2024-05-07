@@ -5,7 +5,7 @@ from typing import List, NamedTuple, Optional, Dict
 import os, math, random, numpy as np # type: ignore
 from Scheduler import Policy
 from dataclasses import dataclass, field
-import matplotlib.pyplot as plt # type: ignore
+from StatsProcessor import StatsProcessor
 
 class DataType(Enum):
     IMAGE = "image"
@@ -92,7 +92,7 @@ class Comparison:
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
         self.intervals = self.generate_random_intervals()
-        self.priorities, self.deadlines = self.generate_deadlines(priority_map)
+        self.priorities, self.deadlines = self.generate_deadlines(priority_map) # Deadlines are relative to the start of a system
         print(self.intervals)
         print(self.deadlines)
         self.stats: Dict[str, List[Stats]] = {}
@@ -113,60 +113,16 @@ data_type={data_type}, priority_map={priority_map}")
         self.plot()
         
     def plot(self) -> None:
-        # ----- Median time taken for each stage, grouped by priority, for all system types
-        fig, axes = plt.subplots(1, 3, figsize=(30, 15))
-        for i, (system_name, system_stats) in enumerate(self.stats.items()):
-            times: Dict = {}
-            if isinstance(system_stats[0], ImageStats):
-                stages = [
-                    'Preprocess Wait', 'Preprocess', 'Inference',
-                    'Midprocessing Wait', 'Midprocessing', 'Inference2',
-                    'Postprocess Wait', 'Postprocess'
-                ]
-                colors = ['red', 'yellow', 'blue', 'red', 'yellow', 'blue', 'red', 'yellow']
-            else:
-                stages = [
-                    'Preprocess Wait', 'Preprocess', 'Inference', 'Postprocess Wait', 'Postprocess'
-                ]
-                colors = ['red', 'yellow', 'blue', 'red', 'yellow']
-
-            # Initialize times dictionary to store median times for each stage
-            times = {stage: [] for stage in stages}
-            for priority in range(1, len(self.priority_map) + 1):
-                stage_times = {stage: [] for stage in stages}
-                for client_id, client_stats in enumerate(system_stats):
-                    if self.priorities[client_id] == priority:
-                        if isinstance(client_stats, ImageStats):
-                            stage_times['Preprocess Wait'].append(client_stats.preprocess_start - client_stats.created)
-                            stage_times['Preprocess'].append(client_stats.preprocess_end - client_stats.preprocess_start)
-                            stage_times['Inference'].append(client_stats.inference_end - client_stats.inference_start)
-                            stage_times['Midprocessing Wait'].append(client_stats.midprocessing_start - client_stats.inference_end)
-                            stage_times['Midprocessing'].append(client_stats.midprocessing_end - client_stats.midprocessing_start)
-                            stage_times['Inference2'].append(client_stats.inference2_end - client_stats.inference2_start)
-                            stage_times['Postprocess Wait'].append(client_stats.postprocess_start - client_stats.midprocessing_end)
-                            stage_times['Postprocess'].append(client_stats.postprocess_end - client_stats.postprocess_start)
-                        else:
-                            stage_times['Preprocess Wait'].append(client_stats.preprocess_start - client_stats.created)
-                            stage_times['Preprocess'].append(client_stats.preprocess_end - client_stats.preprocess_start)
-                            stage_times['Inference'].append(client_stats.inference_end - client_stats.inference_start)
-                            stage_times['Postprocess Wait'].append(client_stats.postprocess_start - client_stats.inference_end)
-                            stage_times['Postprocess'].append(client_stats.postprocess_end - client_stats.postprocess_start)
-                for stage in stages:
-                    times[stage].append(np.median(stage_times[stage]))
-            # ----- Plot all priorities
-            print(times)
-            priorities = list(range(1, len(self.priority_map) + 1))
-            bottom = np.zeros(len(priorities))
-            for j, (stage, time_all_priorities) in enumerate(times.items()):
-                time_all_priorities = np.array(time_all_priorities)
-                p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[j], label=stage)
-                bottom += time_all_priorities
-            axes[i].set_title(system_name)
-            axes[i].legend(loc="upper right")
-                
-        plt.savefig(os.path.join(self.dir_name, "stages.png"))
+        stats_processor = StatsProcessor(self.stats, self.deadlines)
+        stats_processor.plot_batches()
+        stats_processor.plot_stages()
     
     def save_stats(self) -> None:
+        # Save deadlines
+        with open(os.path.join(self.dir_name, "deadlines.csv"), "w") as f:
+            for i in range(self.client_num):
+                f.write(f"{i},{self.priorities[i]},{self.deadlines[i]}\n")
+            f.close()
         for system_args, system_stats in self.stats.items():
             with open(os.path.join(self.dir_name, f"{str(system_args)}.csv"), "w") as f:
                 for client_id, client_stats in enumerate(system_stats):
