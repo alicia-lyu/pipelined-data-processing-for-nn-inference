@@ -62,7 +62,7 @@ class StatsProcessor:
                     f.close()
         else:
             raise ValueError(f"Stats {stats} not supported")
-        self.dir_name = os.path.join(base_dir, "__".join(stats.keys()))
+        self.dir_name = base_dir
         os.makedirs(self.dir_name, exist_ok=True)
         
         if isinstance(deadlines, List):

@@ -70,6 +70,7 @@ class AudioRecognitionClient(Client):
 
         self.log()
         print(self.process_id, transcriptions)
+        super().run()
         return self.stats
 
     def log(self):

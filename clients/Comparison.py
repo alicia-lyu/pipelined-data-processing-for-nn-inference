@@ -58,7 +58,7 @@ class Comparison:
         self.max_interval = max_interval
         self.random_pattern = random_pattern
         self.trace_prefix = f"*** {self.__class__.__name__}: "
-        self.dir_name = f"../logs/{data_type.value}-{random_pattern.value.lower()}-{min_interval}-{max_interval}-{batch_size}"
+        self.dir_name = f"../logs/{data_type.value}-{random_pattern.value.lower()}-{min_interval}-{max_interval}-{batch_size}-{time.strftime('%H:%M:%S')}"
         os.makedirs(self.dir_name, exist_ok=True)
         # ----- Data type specific parameters
         if data_type == DataType.IMAGE:
@@ -72,7 +72,7 @@ class Comparison:
         else:
             raise ValueError("Invalid data type")
         self.data_type = data_type
-        self.data_paths = Comparison.read_data_from_folder(extension)
+        self.data_paths = Comparison.read_data_from_folder(extension)[:80]
         self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)

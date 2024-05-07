@@ -126,7 +126,7 @@ class TextRecognitionClient(Client):
         self.send_signal(Message.FINISHED)
 
         self.log()
-
+        super().run()
         return self.stats
 
     def log(self) -> bool:

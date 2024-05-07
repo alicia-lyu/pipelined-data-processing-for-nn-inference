@@ -20,13 +20,13 @@ system_args_combinations = [
         SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 1, 10),
         SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 2, 10),
         SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 4, 10),
-        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 10)
-    ],
-    [
-        SystemArgs(SystemType.NON_COORDINATED_BATCH),
-        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 10),
-        SystemArgs(SystemType.PIPELINE, Policy.FIFO, 8, 10)
+        SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 6, 10)
     ]
+    # [
+    #     SystemArgs(SystemType.NON_COORDINATED_BATCH),
+    #     SystemArgs(SystemType.PIPELINE, Policy.SLO_ORIENTED, 8, 10),
+    #     SystemArgs(SystemType.PIPELINE, Policy.FIFO, 8, 10)
+    # ]
 ]
 
 def compare_systems(comparison_args, system_args):
