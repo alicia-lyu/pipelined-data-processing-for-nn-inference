@@ -94,11 +94,16 @@ class Comparison:
         self.intervals = self.generate_random_intervals()
         self.priorities, self.deadlines = self.generate_deadlines(priority_map)
         self.stats: Dict[str, List[Stats]] = {}
+        
+        print(self.trace_prefix, f"batch_size={batch_size}, client_num={self.client_num}, \
+            min_interval={min_interval}, max_interval={max_interval}, random_pattern={random_pattern}\
+            data_type={data_type}, priority_map={priority_map}")
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
         from System import System
         self.dir_name = os.path.join(f"../log_{self.data_type.value}", "__".join([str(system_args) for system_args in system_args_list]))
         os.mkdir(self.dir_name, exist_ok=True)
+        print(self.trace_prefix, f"Comparing {len(system_args_list)} systems. Created directory {self.dir_name}")
         for system_args in system_args_list:
             system = System(self, system_args)
             system_stats = system.run()

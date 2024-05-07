@@ -18,6 +18,7 @@ class System:
         self.clients_stats: Dict[int, Dict[str, float]] = {}
         self.system_args = system_args
         system_type, policy, cpu_tasks_cap, lost_cause_threshold = system_args
+        print(self.trace_prefix, f"System type: {system_type}, Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
         
         # ----- System specific parameters
         if system_type == SystemType.NAIVE_SEQUENTIAL:
@@ -50,6 +51,7 @@ class System:
         for p in self.clients:
             p.join()
         batch_arrive_process.join()
+        print(self.trace_prefix, f"All clients have finished. Got stats from {len(self.clients_stats.items())} clients.")
         return self.convert_stats()
     
     def naive_sequential(self, batch, client_id, t0) -> None:

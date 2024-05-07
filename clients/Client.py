@@ -19,6 +19,7 @@ class Client(metaclass=ABCMeta):
             self.t0 = t0
         self.stats = stats
         self.stats["created"] = t0
+        self.trace_prefix = f"*** {self.__class__.__name__}: "
     
     @abstractmethod
     def run(self):
@@ -39,11 +40,11 @@ class Client(metaclass=ABCMeta):
             if receiver_id == self.process_id and signal_type == signal_awaited:
                 break
         end = time.time()
-        print(self.wait_signal.trace_prefix(), f"Process {self.process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
+        print(self.trace_prefix(), f"Process {self.process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
         
     @trace(__file__)
     def send_signal(self, signal_to_send):
         if self.pipe == None: # Not coordinating multiple processes
             return
-        print(self.send_signal.trace_prefix(), "Process %d sent signal %s." % (self.process_id, signal_to_send))
+        print(self.trace_prefix(), "Process %d sent signal %s." % (self.process_id, signal_to_send))
         self.pipe.send((self.process_id, signal_to_send))

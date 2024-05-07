@@ -40,8 +40,9 @@ class Scheduler:
         self.CPU_TASKS_CAP = cpu_tasks_cap
         self.deadlines = deadlines
         self.lost_cause_threshold = lost_cause_threshold
+        self.trace_prefix = f"*** {self.__class__.__name__}: "
+        print(self.trace_prefix, f"Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
     
-    @trace(__file__)
     def run(self) -> bool:
         # Act on received signal from a child
         while True:
@@ -59,7 +60,7 @@ class Scheduler:
                 for ready_pipe in ready[0]:
                     client_id, signal_type = ready_pipe.recv()
                     client_id = int(client_id)
-                    print(self.run.trace_prefix(), f"Received signal {signal_type} from {client_id}", "Active CPUs: "+str(self.active_cpus))#, hashmap_stage, hashmap_state)
+                    print(self.trace_prefix, f"Received signal {signal_type} from {client_id}", "Active CPUs: "+str(self.active_cpus))#, hashmap_stage, hashmap_state)
                     # A child client relinquishes CPU
                     if signal_type == Message.RELINQUISH_CPU:
                         self.children_states[client_id] = CPUState.GPU
@@ -69,7 +70,6 @@ class Scheduler:
                         self.children_states[client_id] = CPUState.WAITING_FOR_CPU
                     elif signal_type == Message.FINISHED:
                         del self.children_states[client_id]
-                        del self.children_deadline_goals[client_id]
                         self.active_cpus -= 1
                     else:
                         raise ValueError(f"Invalid signal type {signal_type}")
@@ -82,7 +82,6 @@ class Scheduler:
                 break  # Break out of the loop
         return True
 
-    @trace(__file__)
     def fifo(self) -> bool:
         candidates = [key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU]
         if len(candidates) == 0:
@@ -91,14 +90,13 @@ class Scheduler:
         try:
             self.parent_pipes[min_process_id].send((min_process_id, Message.ALLOCATE_CPU))
         except ValueError:
-            print(self.fifo.trace_prefix(), "No client to allocate the spare CPU. States:", self.children_states)
+            print(self.trace_prefix, "No client to allocate the spare CPU. States:", self.children_states)
             return False
         else:
             self.children_states[min_process_id] = CPUState.CPU
-            print(self.fifo.trace_prefix(), f"CPU is allocated to {min_process_id}.")
+            print(self.trace_prefix, f"CPU is allocated to {min_process_id}.")
             return True
 
-    @trace(__file__)
     def slo_oriented(self):
         candidates = [child_id
             for child_id, deadline in enumerate(self.deadlines)
@@ -113,9 +111,9 @@ class Scheduler:
         try:
             self.parent_pipes[process_chosen].send((process_chosen, Message.ALLOCATE_CPU))
         except ValueError:
-            print(self.slo_oriented.trace_prefix(), "No client to allocate the spare CPU. States:", self.children_states)
+            print(self.trace_prefix, "No client to allocate the spare CPU. States:", self.children_states)
             return False
         else:
             self.children_states[process_chosen] = CPUState.CPU
-            print(self.slo_oriented.trace_prefix(), f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {self.deadlines[process_chosen] - time.time():5f} s.")
+            print(self.trace_prefix, f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {self.deadlines[process_chosen] - time.time():5f} s.")
             return True
