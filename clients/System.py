@@ -160,4 +160,4 @@ class System:
         return final_stats_list
     
     def get_log_dir(self) -> str:
-        return self.comparison.dir_name + str(self.system_args)
+        return os.path.join(self.comparison.dir_name, str(self.system_args))

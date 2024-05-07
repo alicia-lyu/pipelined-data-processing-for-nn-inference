@@ -1,5 +1,5 @@
 from multiprocessing.connection import Connection
-import time
+import time, os
 from abc import ABCMeta, abstractmethod
 import tritonclient.http as httpclient # type: ignore
 from utils import trace
@@ -8,7 +8,7 @@ from typing import Dict
 
 class Client(metaclass=ABCMeta):
     def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = {}, signal_pipe: Connection = None):
-        self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"
+        self.filename = os.path.join(log_dir_name, str(process_id).zfill(3) + ".txt")
         self.batch = batch
         self.process_id = process_id
         self.triton_client = httpclient.InferenceServerClient(url="localhost:8000")

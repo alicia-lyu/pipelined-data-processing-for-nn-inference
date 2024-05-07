@@ -42,6 +42,7 @@ class Scheduler:
         self.lost_cause_threshold = lost_cause_threshold
         self.trace_prefix = f"*** {self.__class__.__name__}: "
         print(self.trace_prefix, f"Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
+        self.start_time = time.time()
     
     def run(self) -> bool:
         # Act on received signal from a child
@@ -98,13 +99,21 @@ class Scheduler:
             return True
 
     def slo_oriented(self):
+        
+        def get_remaining_time(deadline):
+            return time.time() - (self.start_time + deadline)
+        
         candidates = [child_id
             for child_id, deadline in enumerate(self.deadlines)
-            if deadline - time.time() < self.lost_cause_threshold and 
+            if get_remaining_time(deadline) < self.lost_cause_threshold and 
             child_id in self.children_states and self.children_states[child_id] == CPUState.WAITING_FOR_CPU
         ]
         if len(candidates) == 0:
-            return False
+            candidates = [key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU]
+            if len(candidates) == 0:
+                return False
+            else:
+                print(self.trace_prefix, f"No other candidates but {len(candidates)} lost causes.")
         # Prioritize the client with the earliest deadline
         # But consider a client as failed cause if it misses its deadline by max(PRIORITY_TO_LATENCY_GOAL)
         process_chosen = int(min(candidates))
@@ -115,5 +124,5 @@ class Scheduler:
             return False
         else:
             self.children_states[process_chosen] = CPUState.CPU
-            print(self.trace_prefix, f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {self.deadlines[process_chosen] - time.time():5f} s.")
+            print(self.trace_prefix, f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {get_remaining_time(self.deadlines[process_chosen]):5f} s.")
             return True
