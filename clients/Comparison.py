@@ -31,7 +31,8 @@ class Stats:
     inference_end: float = field(default=None)
     postprocess_start: float = field(default=None)
     postprocess_end: float = field(default=None)
-    
+
+@dataclass
 class ImageStats(Stats):
     midprocessing_start: float = field(default=None)
     midprocessing_end: float = field(default=None)
@@ -40,9 +41,9 @@ class ImageStats(Stats):
 
 class SystemArgs(NamedTuple):
     system_type: SystemType
-    policy: Optional[Policy]
-    cpu_tasks_cap: Optional[int]
-    lost_cause_threshold: Optional[int]
+    policy: Optional[Policy] = None
+    cpu_tasks_cap: Optional[int] = None
+    lost_cause_threshold: Optional[int] = None
     def __str__(self):
         system_name = self.system_type.value
         system_name += f"_{self.policy.value}" if self.policy is not None else ""
@@ -96,13 +97,13 @@ class Comparison:
         self.stats: Dict[str, List[Stats]] = {}
         
         print(self.trace_prefix, f"batch_size={batch_size}, client_num={self.client_num}, \
-            min_interval={min_interval}, max_interval={max_interval}, random_pattern={random_pattern}\
-            data_type={data_type}, priority_map={priority_map}")
+min_interval={min_interval}, max_interval={max_interval}, random_pattern={random_pattern}, \
+data_type={data_type}, priority_map={priority_map}")
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
         from System import System
         self.dir_name = os.path.join(f"../log_{self.data_type.value}", "__".join([str(system_args) for system_args in system_args_list]))
-        os.mkdir(self.dir_name, exist_ok=True)
+        os.makedirs(self.dir_name, exist_ok=True)
         print(self.trace_prefix, f"Comparing {len(system_args_list)} systems. Created directory {self.dir_name}")
         for system_args in system_args_list:
             system = System(self, system_args)
@@ -222,7 +223,7 @@ class Comparison:
     
     @staticmethod
     def trace_prefix():
-        return f"*** {Comparison.__class__.__name__} static: "
+        return f"*** Comparison static: "
     
     @staticmethod
     def read_data_from_folder(extension: str) -> List[str]:
@@ -246,11 +247,10 @@ class Comparison:
         return data_paths
     
     @staticmethod
-    def map_args_to_enum(data_type_arg: str, system_type_arg: str, random_pattern_arg) -> tuple[DataType, SystemType]:
+    def map_args_to_enum(data_type_arg: str, random_pattern_arg: str) -> tuple[DataType, SystemType]:
         try:
             data_type = DataType(data_type_arg)
-            system_type = SystemType(system_type_arg)
             random_pattern = RandomPattern(random_pattern_arg)
         except ValueError:
             raise ValueError("Invalid data type, system type, or random pattern")
-        return data_type, system_type, random_pattern
+        return data_type, random_pattern

@@ -7,7 +7,7 @@ from Scheduler import Message
 from typing import Dict
 
 class Client(metaclass=ABCMeta):
-    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None):
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = {}, signal_pipe: Connection = None):
         self.filename = log_dir_name + str(process_id).zfill(3) + ".txt"
         self.batch = batch
         self.process_id = process_id

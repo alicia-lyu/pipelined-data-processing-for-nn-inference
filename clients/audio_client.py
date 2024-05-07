@@ -11,12 +11,13 @@ from Client import Client
 from typing import Dict
 
 class AudioRecognitionClient(Client):
-    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = {}, signal_pipe: Connection = None) -> None:
         self.t1 = None
         self.t2 = None
         self.t3 = None
         self.t4 = None
         self.t5 = None
+        super().__init__(log_dir_name, batch, process_id, t0, stats, signal_pipe)
 
     @trace(__file__)
     def audio_preprocess(self, processor: Wav2Vec2Processor):

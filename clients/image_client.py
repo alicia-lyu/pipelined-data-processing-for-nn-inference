@@ -13,7 +13,7 @@ from typing import Dict
 SAVE_INTERMEDIATE_IMAGES = False
 
 class TextRecognitionClient(Client):
-    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = None, signal_pipe: Connection = None) -> None:
+    def __init__(self, log_dir_name, batch, process_id, t0: float, stats: Dict = {}, signal_pipe: Connection = None) -> None:
         self.t1 = None
         self.t2 = None
         self.t3 = None
@@ -22,13 +22,14 @@ class TextRecognitionClient(Client):
         self.t6 = None
         self.t7 = None
         self.t8 = None
+        super().__init__(log_dir_name, batch, process_id, t0, stats, signal_pipe)
     
     @trace(__file__)
     def preprocess(self):
         self.t1 = time.time()
         print(self.preprocess.trace_prefix(), f"Process {self.process_id}: PREPROCESSING start at {time.strftime('%H:%M:%S.')}")
         raw_images = []
-        for path in self.data_paths:
+        for path in self.batch:
             raw_images.append(cv2.imread(path))
 
         preprocessed_images = []
@@ -93,7 +94,6 @@ class TextRecognitionClient(Client):
         final_text = recognition_postprocessing(recognition_response.as_numpy("308"))
         print(self.postprocess.trace_prefix(), f"Process {self.process_id}: POSTPROCESSING finish at {time.strftime('%H:%M:%S.')}")
         self.t8 = time.time()
-        print(final_text)
         return final_text
     
     def run(self):
@@ -113,7 +113,7 @@ class TextRecognitionClient(Client):
         if cropped_images is None:
             self.log()
             self.send_signal(Message.FINISHED)
-            return []
+            return self.stats
         self.send_signal(Message.RELINQUISH_CPU)
 
         #### RECOGNITION INFERENCE (GPU)

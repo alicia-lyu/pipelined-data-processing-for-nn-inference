@@ -4,21 +4,30 @@ from typing import List, Dict
 from multiprocessing import Process, Pipe, Manager
 from multiprocessing.connection import Connection
 from Scheduler import Scheduler
-from Comparison import SystemType, Comparison, SystemArgs, Stats, ImageStats
+from Comparison import SystemType, Comparison, SystemArgs, Stats, ImageStats, DataType
+from audio_client import AudioRecognitionClient
+from image_client import TextRecognitionClient
 
 PROCESS_CAP = 20
 
 class System:
     def __init__(self, comparison: Comparison, system_args: SystemArgs) -> None:
         self.comparison = comparison
+        self.system_args = system_args
         self.trace_prefix = f"*** {self.__class__.__name__}: "
+        
+        system_type, policy, cpu_tasks_cap, lost_cause_threshold = system_args
+        print(self.trace_prefix, f"System type: {system_type}, Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
+        
         self.log_path = self.get_log_dir()
         os.makedirs(self.log_path, exist_ok = True)
         self.clients: List[Process] = []
         self.clients_stats: Dict[int, Dict[str, float]] = {}
-        self.system_args = system_args
-        system_type, policy, cpu_tasks_cap, lost_cause_threshold = system_args
-        print(self.trace_prefix, f"System type: {system_type}, Policy: {policy}, CPU tasks cap: {cpu_tasks_cap}, Lost cause threshold: {lost_cause_threshold}")
+        
+        if comparison.data_type == DataType.IMAGE:
+            self.client_class = TextRecognitionClient
+        else:
+            self.client_class = AudioRecognitionClient
         
         # ----- System specific parameters
         if system_type == SystemType.NAIVE_SEQUENTIAL:
@@ -43,14 +52,17 @@ class System:
             raise ValueError("Invalid system type")
     
     def run(self) -> List[Stats]:
-        batch_arrive_process = Process(target = self.batch_arrive)
-        batch_arrive_process.start()
         if self.create_client_func == self.pipeline_client:
-            scheduler = Scheduler(self.parent_pipes, max(self.comparison.priority_map) * 2, self.policy, self.cpu_tasks_cap, self.comparison.deadlines, self.lost_cause_threshold)
-            scheduler.run()
+            scheduler = Scheduler(self.parent_pipes, max(self.comparison.priority_map.values()) * 2, self.policy, self.cpu_tasks_cap, self.comparison.deadlines, self.lost_cause_threshold)
+            scheduler_process = Process(target = scheduler.run)
+            scheduler_process.start()
+        else:
+            scheduler_process = None
+        self.batch_arrive()
+        if scheduler_process is not None:
+            scheduler_process.join()
         for p in self.clients:
             p.join()
-        batch_arrive_process.join()
         print(self.trace_prefix, f"All clients have finished. Got stats from {len(self.clients_stats.items())} clients.")
         return self.convert_stats()
     
@@ -94,7 +106,7 @@ class System:
             
             # ----- Start the process
             # In other systems, blocked_time should be close to 0
-            p = self.create_client_func(batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
+            self.create_client_func(batch, client_id, t0 - blocked_time) # blocked time: should've started earlier
             
             blocked_time += time.time() - t0
             # Calibrate t0 for
@@ -124,7 +136,7 @@ class System:
                     )
                 except KeyError:
                     raise ValueError("Invalid stats keys")    
-            if len(stats) == 11:
+            elif len(stats) == 11:
                 try:
                     final_stats = ImageStats(
                         created=stats["created"],
@@ -142,7 +154,7 @@ class System:
                 except KeyError:
                     raise ValueError("Invalid stats keys")
             else:
-                raise ValueError("Invalid stats length")
+                raise ValueError(f"Invalid stats length {len(stats)} at {client_id}: {stats}")
             final_stats_list.append(final_stats)
         assert(client_id == self.comparison.client_num - 1)
         return final_stats_list
