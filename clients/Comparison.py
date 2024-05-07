@@ -188,6 +188,19 @@ data_type={data_type}, priority_map={priority_map}")
                 
         plt.savefig(os.path.join(self.dir_name, "stages.png"))
     
+    def save_stats(self) -> None:
+        for system_args, system_stats in self.stats.items():
+            with open(os.path.join(self.dir_name, f"{str(system_args)}.csv"), "w") as f:
+                for client_id, client_stats in enumerate(system_stats):
+                    if isinstance(client_stats, ImageStats):
+                        f.write(f"{client_id},{client_stats.created},{client_stats.preprocess_start},{client_stats.preprocess_end},\
+{client_stats.inference_start},{client_stats.inference_end},{client_stats.midprocessing_start},{client_stats.midprocessing_end},\
+{client_stats.inference2_start},{client_stats.inference2_end},{client_stats.postprocess_start},{client_stats.postprocess_end}\n")
+                    else:
+                        f.write(f"{client_id},{client_stats.created},{client_stats.preprocess_start},{client_stats.preprocess_end},\
+{client_stats.inference_start},{client_stats.inference_end},{client_stats.postprocess_start},{client_stats.postprocess_end}\n")
+                f.close()
+    
     def generate_random_intervals(self):
         intervals = []
         for i in range(self.client_num):
