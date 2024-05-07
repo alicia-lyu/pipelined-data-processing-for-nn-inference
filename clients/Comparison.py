@@ -150,9 +150,9 @@ data_type={data_type}, priority_map={priority_map}")
         return priorities, deadlines
     
     @staticmethod
-    def exp_random(min_val, max_val, rate=1):
-        scale = 1 / rate
-        return min_val + np.random.exponential(scale) * (max_val - min_val)
+    def exp_random(min_interval, max_interval):
+        mean_interval = (min_interval + max_interval) / 2
+        return np.random.exponential(mean_interval)
     
     @staticmethod
     def trace_prefix():
