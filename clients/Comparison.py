@@ -72,14 +72,14 @@ class Comparison:
         else:
             raise ValueError("Invalid data type")
         self.data_type = data_type
-        self.data_paths = Comparison.read_data_from_folder(extension)
+        self.data_paths = Comparison.read_data_from_folder(extension)[:10]
         self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)
         self.intervals = self.generate_random_intervals()
         self.priorities, self.deadlines = self.generate_deadlines(priority_map) # Deadlines are relative to the start of a system
-        print(self.intervals)
-        print(self.deadlines)
+        # print(self.intervals)
+        # print(self.deadlines)
         self.stats: Dict[str, List[Stats]] = {}
         
         print(self.trace_prefix, f"batch_size={batch_size}, client_num={self.client_num}, \
@@ -93,6 +93,7 @@ data_type={data_type}, priority_map={priority_map}")
             system = System(self, system_args)
             system_stats = system.run()
             self.stats[str(system_args)] = system_stats
+            time.sleep(1)
         self.save_stats()
         self.plot()
         

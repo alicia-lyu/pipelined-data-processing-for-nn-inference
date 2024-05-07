@@ -63,7 +63,7 @@ class StatsProcessor:
         else:
             raise ValueError(f"Stats {stats} not supported")
         
-        self.dir_name = os.path.join("../stats_", "__".join(stats.keys()))
+        self.dir_name = os.path.join("../stats", "__".join(stats.keys()))
         os.makedirs(self.dir_name, exist_ok=True)
         
         if isinstance(deadlines, List):
@@ -93,6 +93,10 @@ class StatsProcessor:
         if priorities is not None:
             self.priorities = priorities
             
+        self.latency_goals = [self.priority_map[
+                self.priorities[client_id]
+            ] for client_id in range(len(self.priorities))]
+            
         # print(self.stats)
         # print(self.deadlines)
         # print(self.priorities)
@@ -110,16 +114,17 @@ class StatsProcessor:
         for i, (system, latency) in enumerate(latencies.items()):
             ax.plot(batches, latency, label=system, color=colors[i])
             ax.axhline(np.mean(latency), linestyle='--', color=colors[i])
-        ax.plot(batches, self.deadlines, label='Deadline', color='k')
+        ax.plot(batches, self.latency_goals, label='Deadline', color='k')
         
         ax.set_title('Latency Comparison')
         ax.set_xlabel('# Request')
         ax.set_ylabel('Latency (s)')
+        ax.legend()
         fig.savefig(self.dir_name + "/latency.png")
         
     def plot_stages(self) -> None:
         # ----- Median time taken for each stage, grouped by priority, for all system types
-        fig, axes = plt.subplots(1, 3, figsize=(30, 15))
+        fig, axes = plt.subplots(1, len(self.stats.items()), figsize=(30, 15))
         for i, (system_name, system_stats) in enumerate(self.stats.items()):
             times: Dict = {}
             if isinstance(system_stats[0], ImageStats):
@@ -169,4 +174,4 @@ class StatsProcessor:
             axes[i].set_title(system_name)
             axes[i].legend(loc="upper right")
             
-        plt.savefig(os.path.join(self.dir_name, "stages.png"))
+        fig.savefig(os.path.join(self.dir_name, "stages.png"))

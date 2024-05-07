@@ -81,7 +81,12 @@ class Scheduler:
                         print(f"Client {process_id} stuck at {child_state}!", file=sys.stderr)
                 print("No data received within the timeout period.")
                 break  # Break out of the loop
+        self.cleanup()
         return True
+    
+    def cleanup(self):
+        for pipe in self.parent_pipes:
+            pipe.close()
 
     def fifo(self) -> bool:
         candidates = [key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU]

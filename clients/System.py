@@ -9,7 +9,7 @@ from audio_client import AudioRecognitionClient
 from image_client import TextRecognitionClient
 from StatsProcessor import Stats, ImageStats
 
-PROCESS_CAP = 20
+PROCESS_CAP = 10
 
 class System:
     def __init__(self, comparison: Comparison, system_args: SystemArgs) -> None:
@@ -62,8 +62,11 @@ class System:
         self.batch_arrive()
         if scheduler_process is not None:
             scheduler_process.join()
-        for p in self.clients:
-            p.join()
+        for client in self.clients:
+            client.join()
+        if self.create_client_func == self.pipeline_client:
+            for pipe in self.child_pipes:
+                pipe.close()
         print(self.trace_prefix, f"All clients have finished. Got stats from {len(self.clients_stats.items())} clients.")
         return self.convert_stats()
     

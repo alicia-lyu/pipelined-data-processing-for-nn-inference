@@ -6,8 +6,8 @@ WAV2VEC=$(MODEL_REPO)/speech_recognition/1/model.onnx
 IMAGE_CLIENT1=$(BASEDIR)/clients/image_client.py
 AUDIO_CLIENT1=$(BASEDIR)/clients/audio_client.py
 # TODO: Save logs using different intervals for future comparison
-MIN_INTERVAL_IMAGE := 0.2
-MAX_INTERVAL_IMAGE := 0.4
+MIN_INTERVAL_IMAGE := 0.15
+MAX_INTERVAL_IMAGE := 0.3
 # 0.1--0.2: First 3 systems are unable to stablize in 129 batchess --- Use more data to run the server longer?
 # 0.15--0.3: Only subprocesses is able to stablize
 # 0.1--0.5: Both subprocesses and pipeline are able to stablize
