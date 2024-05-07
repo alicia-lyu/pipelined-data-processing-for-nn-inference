@@ -22,7 +22,7 @@ class ImageStats(Stats):
     inference2_end: float = field(default=None)
 
 class StatsProcessor:
-    def __init__(self, stats, deadlines):
+    def __init__(self, stats, deadlines, priority_map, priorities = None):
         if isinstance(stats, Dict):
             self.stats: Dict[str, List[Stats]] = stats
         elif isinstance(stats, List): # list of filenames
@@ -70,11 +70,28 @@ class StatsProcessor:
             self.deadlines = deadlines
         elif isinstance(deadlines, str):
             self.deadlines = [0 for _ in range(len(self.stats.values()[0]))]
+            self.priorities = [0 for _ in range(len(self.stats.values()[0]))]
             with open(deadlines, 'r') as f:
                 for line in f.readlines():
                     client_id, priority, deadline = line.split()
                     self.deadlines[int(client_id)] = float(deadline)
+                    self.priorities[int(client_id)] = int(priority)
                 f.close()
+                
+        if isinstance(priority_map, Dict):
+            self.priority_map = priority_map
+        elif isinstance(priority_map, str):
+            self.priority_map = {}
+            with open(priority_map, 'r') as f:
+                for line in f.readlines():
+                    priority, latency = line.split()
+                    self.priority_map[int(priority)] = float(latency)
+                f.close()
+        else:
+            raise ValueError(f"Priority map {priority_map} not supported")
+        
+        if priorities is None:
+            self.priorities = priorities
         
     def plot_batches(self):
         latencies = {}

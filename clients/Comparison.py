@@ -97,7 +97,7 @@ data_type={data_type}, priority_map={priority_map}")
         self.plot()
         
     def plot(self) -> None:
-        stats_processor = StatsProcessor(self.stats, self.deadlines)
+        stats_processor = StatsProcessor(self.stats, self.deadlines, self.priority_map, self.priorities)
         stats_processor.plot_batches()
         stats_processor.plot_stages()
     
@@ -107,6 +107,12 @@ data_type={data_type}, priority_map={priority_map}")
             for i in range(self.client_num):
                 f.write(f"{i},{self.priorities[i]},{self.deadlines[i]}\n")
             f.close()
+        # Save priority map
+        with open(os.path.join(self.dir_name, "priority_map.csv"), "w") as f:
+            for priority, latency in self.priority_map.items():
+                f.write(f"{priority},{latency}\n")
+            f.close()
+        # Save stats
         for system_args, system_stats in self.stats.items():
             with open(os.path.join(self.dir_name, f"{str(system_args)}.csv"), "w") as f:
                 for client_id, client_stats in enumerate(system_stats):
