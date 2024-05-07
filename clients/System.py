@@ -9,7 +9,7 @@ from audio_client import AudioRecognitionClient
 from image_client import TextRecognitionClient
 from StatsProcessor import Stats, ImageStats
 
-PROCESS_CAP = 50
+PROCESS_CAP = 30
 
 class System:
     def __init__(self, comparison: Comparison, system_args: SystemArgs) -> None:

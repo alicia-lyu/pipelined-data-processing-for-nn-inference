@@ -110,30 +110,34 @@ class StatsProcessor:
             latencies[system] = []
             for stats in system_stats:
                 latencies[system].append(stats.postprocess_end - stats.created)
-        fig, ax = plt.subplots()
+        plt.rcParams.update({'font.size': 12})
+        fig, ax = plt.subplots(figsize=(10, 8))
         batches = range(len(latencies[system]))
         colors = ['r', 'g', 'b', 'y', 'm']
-        for i, (system, latency) in enumerate(latencies.items()):
-            ax.plot(batches, latency, label=system, color=colors[i])
-            ax.axhline(np.mean(latency), linestyle='--', color=colors[i])
-        failed_goal = 0
+        failed_goal = {system: 0 for system in latencies.keys()}
         for client_id, latency_goal in enumerate(self.latency_goals):
             for system, latency in latencies.items():
-                if latency[client_id] > latency_goal:
-                    failed_goal += 1
-        if failed_goal > self.client_num * 0.05: # Don't plot if only few didn't achieve goal
+                if latency[client_id] > latency_goal * 1.1:
+                    failed_goal[system] += 1
+        for i, (system, latency) in enumerate(latencies.items()):
+            ax.plot(batches, latency, label=f"{system}: Failing {failed_goal[system]}/{self.client_num}", color=colors[i])
+            ax.axhline(np.mean(latency), linestyle='--', color=colors[i])
+            
+        if sum(failed_goal.values()) > self.client_num * 0.02: # Don't plot if only few didn't achieve goal
             print(f"Failed goal: {failed_goal} / {len(latencies.items()) * self.client_num}")
             ax.plot(batches, self.latency_goals, label='Deadline', color='k')
         
         ax.set_title('Latency Comparison')
         ax.set_xlabel('# Request')
         ax.set_ylabel('Latency (s)')
+        ax.grid()
         ax.legend()
         fig.savefig(os.path.join(self.dir_name, "latency.png"))
         
     def plot_stages(self) -> None:
         # ----- Median time taken for each stage, grouped by priority, for all system types
-        fig, axes = plt.subplots(1, len(self.stats.items()), figsize=(30, 15))
+        plt.rcParams.update({'font.size': 12})
+        fig, axes = plt.subplots(1, len(self.stats.items()), figsize=(6 * len(self.stats.items()), 8))
         for i, (system_name, system_stats) in enumerate(self.stats.items()):
             times: Dict = {}
             if isinstance(system_stats[0], ImageStats):
@@ -174,13 +178,14 @@ class StatsProcessor:
                     times[stage].append(np.median(stage_times[stage]))
             # ----- Plot all priorities
             print(times)
-            priorities = list(range(1, len(self.priority_map) + 1))
+            priorities = [f"Priority {i}" for i in range(1, len(self.priority_map) + 1)]
             bottom = np.zeros(len(priorities))
             for j, (stage, time_all_priorities) in enumerate(times.items()):
                 time_all_priorities = np.array(time_all_priorities)
                 p = axes[i].bar(priorities, time_all_priorities, bottom=bottom, color=colors[j], label=stage)
                 bottom += time_all_priorities
             axes[i].set_title(system_name)
+            axes[i].grid()
             axes[i].legend(loc="upper right")
             
         fig.savefig(os.path.join(self.dir_name, "stages.png"))

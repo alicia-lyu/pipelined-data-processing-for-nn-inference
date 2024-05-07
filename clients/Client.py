@@ -30,7 +30,7 @@ class Client(metaclass=ABCMeta):
         pass
     
     @trace(__file__)
-    def wait_signal(self, signal_awaited: str) -> None:
+    def wait_signal(self, signal_awaited: Message) -> None:
         if self.pipe == None: # Not coordinating multiple processes
             return
         start = time.time()
@@ -43,7 +43,7 @@ class Client(metaclass=ABCMeta):
         # print(self.trace_prefix, f"Process {self.process_id} waited for signal {signal_awaited} for {end - start: .5f}.")
         
     @trace(__file__)
-    def send_signal(self, signal_to_send):
+    def send_signal(self, signal_to_send: Message) -> None:
         if self.pipe == None: # Not coordinating multiple processes
             return
         # print(self.trace_prefix, "Process %d sent signal %s." % (self.process_id, signal_to_send))

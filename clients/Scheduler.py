@@ -47,13 +47,6 @@ class Scheduler:
     def run(self) -> bool:
         # Act on received signal from a child
         while True:
-            # Allocate all available CPUs
-            while self.active_cpus < self.CPU_TASKS_CAP:
-                allocated = self.policy()
-                if allocated:
-                    self.active_cpus += 1
-                else:
-                    break
             # Wait for data on the parent_pipe or until the timeout expires
             ready = select.select(self.parent_pipes, [], [], self.timeout)
             if ready[0]:
@@ -74,6 +67,9 @@ class Scheduler:
                         self.active_cpus -= 1
                     else:
                         raise ValueError(f"Invalid signal type {signal_type}")
+                    
+                    allocated = self.policy()
+                    
             else:
                 # Handle timeout
                 if len(self.children_states) != 0:
@@ -89,6 +85,8 @@ class Scheduler:
             pipe.close()
 
     def fifo(self) -> bool:
+        if self.active_cpus >= self.CPU_TASKS_CAP:
+            return False
         candidates = [key for key, value in self.children_states.items() if value == CPUState.WAITING_FOR_CPU]
         if len(candidates) == 0:
             return False
@@ -100,10 +98,13 @@ class Scheduler:
             return False
         else:
             self.children_states[min_process_id] = CPUState.CPU
+            self.active_cpus += 1
             # print(self.trace_prefix, f"CPU is allocated to {min_process_id}.")
             return True
 
     def slo_oriented(self):
+        if self.active_cpus >= self.CPU_TASKS_CAP:
+            return False
         
         def get_remaining_time(deadline):
             return self.start_time + deadline - time.time()
@@ -130,4 +131,5 @@ class Scheduler:
         else:
             self.children_states[process_chosen] = CPUState.CPU
             print(self.trace_prefix, f"CPU is allocated to {process_chosen}, trying to satisfy its deadline in {get_remaining_time(self.deadlines[process_chosen]):5f} s.")
+            self.active_cpus += 1
             return True

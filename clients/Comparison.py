@@ -29,8 +29,7 @@ class SystemArgs(NamedTuple):
     def __str__(self):
         system_name = self.system_type.value
         system_name += f"_{self.policy.value}" if self.policy is not None else ""
-        system_name += f"_cpu_tasks_cap={self.cpu_tasks_cap}" if self.cpu_tasks_cap is not None else ""
-        system_name += f"_lost_cause_threshold={self.lost_cause_threshold}" if self.lost_cause_threshold is not None else ""
+        system_name += f"_cpu_tasks_cap={self.cpu_tasks_cap}" if self.cpu_tasks_cap is not None and self.cpu_tasks_cap > 1 else ""
         return system_name
 
 PRIORITY_TO_LATENCY_IMAGE = {
@@ -41,10 +40,10 @@ PRIORITY_TO_LATENCY_IMAGE = {
 }
 
 PRIORITY_TO_LATENCY_AUDIO = {
-    1: 7.0,
-    2: 10.0,
-    3: 13.0,
-    4: 16.0
+    1: 6.0,
+    2: 8.0,
+    3: 10.0,
+    4: 12.0
 }
 
 IMAGE_FOLDER = "../../datasets/SceneTrialTrain"
@@ -72,7 +71,7 @@ class Comparison:
         else:
             raise ValueError("Invalid data type")
         self.data_type = data_type
-        self.data_paths = Comparison.read_data_from_folder(extension)[:80]
+        self.data_paths = Comparison.read_data_from_folder(extension)[:120]
         self.priority_map = priority_map
         
         self.client_num = math.ceil(len(self.data_paths) / batch_size)

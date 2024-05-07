@@ -57,8 +57,8 @@ triton-server: $(OPEN_CV) $(RESNET) $(WAV2VEC)
 	docker build -t triton-image .
 	docker run --gpus=all --shm-size=256m --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$(MODEL_REPO):/models" triton-image || echo "Triton server already running"
 
-COMPARISON_ARGS_INDICES := 0 1 2 3 4 5
-SYSTEM_ARGS_INDICES := 0 1 2
+COMPARISON_ARGS_INDICES := 3 4 5
+SYSTEM_ARGS_INDICES := 0 1
 
 test-comparison: $(IMAGE_CLIENT1) $(AUDIO_CLIENT1) triton-server
 	-for i in $(COMPARISON_ARGS_INDICES); do \
