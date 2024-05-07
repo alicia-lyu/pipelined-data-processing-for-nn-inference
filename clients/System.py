@@ -3,9 +3,8 @@ import time, os, multiprocessing
 from typing import List, Dict
 from multiprocessing import Process, Pipe, Manager
 from multiprocessing.connection import Connection
-from Scheduler import Scheduler, Policy
-from Comparison import DataType, SystemType, Comparison, SystemArgs
-from Comparison import Stats, ImageStats
+from Scheduler import Scheduler
+from Comparison import SystemType, Comparison, SystemArgs, Stats, ImageStats
 
 PROCESS_CAP = 20
 

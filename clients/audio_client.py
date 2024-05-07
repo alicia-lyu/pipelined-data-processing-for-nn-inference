@@ -1,14 +1,13 @@
 import tritonclient.http as httpclient # type: ignore
 import soundfile as sf # type: ignore
 from transformers import Wav2Vec2Processor # type: ignore
-import torch
+import torch # type: ignore
 import sys, os
 from multiprocessing.connection import Connection
 import time
 from utils import trace
 from Scheduler import Message
-from Client import Client, Stats
-from dataclasses import field
+from Client import Client
 from typing import Dict
 
 class AudioRecognitionClient(Client):

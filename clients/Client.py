@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 import tritonclient.http as httpclient # type: ignore
 from utils import trace
 from Scheduler import Message
-from dataclasses import dataclass, field
 from typing import Dict
 
 class Client(metaclass=ABCMeta):

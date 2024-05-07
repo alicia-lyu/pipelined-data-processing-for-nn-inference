@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import cv2, math # type: ignore
-import numpy as np
+import numpy as np # type: ignore
 
 def detection_preprocessing(image: cv2.Mat) -> np.ndarray:
     inpWidth = 640

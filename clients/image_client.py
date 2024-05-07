@@ -1,5 +1,5 @@
 import os, cv2 # type: ignore
-import numpy as np
+import numpy as np # type: ignore
 import tritonclient.http as httpclient # type: ignore
 import time
 import sys
@@ -7,8 +7,7 @@ from multiprocessing.connection import Connection
 from Scheduler import Message
 from utils import trace
 from image_processing import detection_preprocessing, detection_postprocessing, recognition_postprocessing
-from Client import Client, Stats
-from dataclasses import field
+from Client import Client
 from typing import Dict
 
 SAVE_INTERMEDIATE_IMAGES = False

@@ -2,11 +2,10 @@ from audio_client import AudioRecognitionClient
 from image_client import TextRecognitionClient
 from enum import Enum
 from typing import List, NamedTuple, Optional, Dict
-import os, math, random, numpy as np
+import os, math, random, numpy as np # type: ignore
 from Scheduler import Policy
-from System import System
 from dataclasses import dataclass, field
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # type: ignore
 
 class DataType(Enum):
     IMAGE = "image"
@@ -97,7 +96,8 @@ class Comparison:
         self.stats: Dict[str, List[Stats]] = {}
 
     def compare(self, system_args_list: List[SystemArgs]) -> None:
-        self.dir_name = os.path.join(f"../log_{self.data_type.value}", f"{"__".join([str(system_args) for system_args in system_args_list])}")
+        from System import System
+        self.dir_name = os.path.join(f"../log_{self.data_type.value}", "__".join([str(system_args) for system_args in system_args_list]))
         os.mkdir(self.dir_name, exist_ok=True)
         for system_args in system_args_list:
             system = System(self, system_args)
