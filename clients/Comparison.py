@@ -35,9 +35,9 @@ class SystemArgs(NamedTuple):
 
 PRIORITY_TO_LATENCY_IMAGE = {
     1: 3.0,
-    2: 4.0,
-    3: 5.0,
-    4: 6.0
+    2: 5.0,
+    3: 7.0,
+    4: 9.0
 }
 
 PRIORITY_TO_LATENCY_AUDIO = {
@@ -58,7 +58,7 @@ class Comparison:
         self.max_interval = max_interval
         self.random_pattern = random_pattern
         self.trace_prefix = f"*** {self.__class__.__name__}: "
-        self.dir_name = f"../logs/comparison_{time.strftime('%H:%M:%S')}"
+        self.dir_name = f"../logs/{data_type.value}-{random_pattern.value.lower()}-{min_interval}-{max_interval}-{batch_size}"
         os.makedirs(self.dir_name, exist_ok=True)
         # ----- Data type specific parameters
         if data_type == DataType.IMAGE:
@@ -86,19 +86,25 @@ class Comparison:
 min_interval={min_interval}, max_interval={max_interval}, random_pattern={random_pattern}, \
 data_type={data_type}, priority_map={priority_map}")
 
-    def compare(self, system_args_list: List[SystemArgs]) -> None:
+    def compare(self, system_args_list: List[SystemArgs]) -> bool:
         from System import System
         print(self.trace_prefix, f"Comparing {len(system_args_list)} systems. Created directory {self.dir_name}")
         for system_args in system_args_list:
             system = System(self, system_args)
             system_stats = system.run()
             self.stats[str(system_args)] = system_stats
-            time.sleep(1)
+            if len(system_stats) < self.client_num:
+                print(self.trace_prefix, f"{str(system_args)} failed to collect stats from all clients!")
+                return False
+            time.sleep(20)
+        for system_name, system_stats in self.stats.items():
+            print(self.trace_prefix, f"{system_name} took {system_stats[-1].postprocess_end - system_stats[0].created} s in total")
         self.save_stats()
         self.plot()
+        return True
         
     def plot(self) -> None:
-        stats_processor = StatsProcessor(self.stats, self.deadlines, self.priority_map, self.priorities)
+        stats_processor = StatsProcessor(self.dir_name, self.stats, self.deadlines, self.priority_map, self.priorities)
         stats_processor.plot_batches()
         stats_processor.plot_stages()
     

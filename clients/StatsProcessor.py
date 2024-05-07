@@ -22,7 +22,7 @@ class ImageStats(Stats):
     inference2_end: float = field(default=None)
 
 class StatsProcessor:
-    def __init__(self, stats, deadlines, priority_map, priorities = None):
+    def __init__(self, base_dir, stats, deadlines, priority_map, priorities = None):
         if isinstance(stats, Dict):
             self.stats: Dict[str, List[Stats]] = stats
         elif isinstance(stats, List): # list of filenames
@@ -63,7 +63,7 @@ class StatsProcessor:
         else:
             raise ValueError(f"Stats {stats} not supported")
         
-        self.dir_name = os.path.join("../stats", "__".join(stats.keys()))
+        self.dir_name = os.path.join(base_dir, "__".join(stats.keys()))
         os.makedirs(self.dir_name, exist_ok=True)
         
         if isinstance(deadlines, List):

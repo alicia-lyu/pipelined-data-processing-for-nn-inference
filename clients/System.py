@@ -139,7 +139,7 @@ class System:
                         postprocess_end=stats["postprocess_end"]
                     )
                 except KeyError:
-                    raise ValueError("Invalid stats keys")    
+                    continue
             elif len(stats) == 11:
                 try:
                     final_stats = ImageStats(
@@ -156,9 +156,10 @@ class System:
                         postprocess_end=stats["postprocess_end"]
                     )
                 except KeyError:
-                    raise ValueError("Invalid stats keys")
+                    continue
             else:
-                raise ValueError(f"Invalid stats length {len(stats)} at {client_id}: {stats}")
+                print(f"Invalid stats length {len(stats)} at {client_id}: {stats}")
+                continue
             final_stats_list.append(final_stats)
         assert(client_id == self.comparison.client_num - 1)
         return final_stats_list
