@@ -16,3 +16,7 @@ Please refer to [our report](./Report.pdf) for a detailed explanation of our pro
     - Benefits of Overlapping CPUs and GPUs
     - Overview of the Triton Server and Client
 - Work Distribution
+
+## Acknowledgements
+
+Thanks to course staff of CS 744 Big Data Systems for their guidance and blueprint for this project.
